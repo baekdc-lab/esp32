@@ -68,8 +68,9 @@
 
 <script>
   // ===================== 설정 =====================
-  // GW 외부 주소 (예: 'http://my.ddns.net:8080')
-  const GATEWAY_BASE_URL = 'http://<공인IP_or_DDNS>:<포트>';
+  // ⚠ 요청하신 주소로 설정 (현재 GitHub Pages 페이지 주소)
+  // 실제 동작을 원하시면 ESP32 게이트웨이의 외부 주소로 바꾸세요 (예: 'http://ne.ddnsfree.com:200')
+  const GATEWAY_BASE_URL = 'https://baekdc-lab.github.io/esp32/index.html';
   // ===============================================
 
   const api = {
@@ -80,7 +81,7 @@
   };
 
   function fullUrl(path){
-    return GATEWAY_BASE_URL.replace(/\/$/,'') + path;
+    return GATEWAY_BASE_URL.replace(/\/index\.html$/,'').replace(/\/$/,'') + path;
   }
   async function fetchUrl(path, opt){
     const res = await fetch(fullUrl(path), Object.assign({cache:'no-store'}, opt||{}));
