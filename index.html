@@ -1,134 +1,166 @@
-// ★ 기존 const char* HTML_INDEX ... 블록 전체를 아래로 교체
-const char* HTML_INDEX = R"HTML(
-<!doctype html><html lang="ko"><head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-<title>LoRa Mesh Monitor</title>
-<style>
-:root{ --bg:#0b1020; --card:#131a33; --muted:#a8b4d4; --text:#e9eef5; --line:#223; --accent:#2a345e; --accentH:#364178; --okbg:#19381f; --okfg:#7CFF9E; --failbg:#3a1620; --failfg:#ffa3b6; --low:#ff5a6b; }
-*{box-sizing:border-box}
-body{font-family:system-ui,Segoe UI,Arial,sans-serif; padding:14px; background:var(--bg); color:var(--text); margin:0;}
-.header{display:flex; align-items:flex-end; justify-content:space-between; margin:0 0 10px}
-h1{font-size:19px; margin:0}
-.clock{font-size:11.5px; color:var(--muted); opacity:.9}
-.row{display:flex; gap:8px; align-items:center; margin:0 0 10px}
-.card{background:var(--card); border-radius:12px; padding:10px; box-shadow:0 2px 10px rgba(0,0,0,.35)}
-table{width:100%; border-collapse:collapse; font-size:13px}
-th,td{padding:8px 6px; border-bottom:1px solid var(--line)}
-th{text-align:left; color:var(--muted); font-weight:600}
-td.num, th.num{text-align:center}
-.badge{padding:2px 8px; border-radius:12px; font-size:12px; display:inline-block}
-.ok{background:var(--okbg); color:var(--okfg)}
-.fail{background:var(--failbg); color:var(--failfg)}
-.lowbat{color:var(--low); font-weight:700;}
-.btn{padding:6px 10px; border-radius:8px; border:none; cursor:pointer; background:var(--accent); color:var(--text); font-size:12.5px}
-.btn:hover{background:var(--accentH)}
-.small{color:var(--muted); font-size:11.5px}
-input[type=number]{width:100px; padding:6px 8px; border-radius:8px; border:1px solid var(--line); background:#0e1630; color:#e9eef5; font-size:12.5px}
-@media (max-width:420px){
-  body{padding:10px}
-  .header{margin-bottom:8px}
-  h1{font-size:18px}
-  .clock{font-size:11px}
-  .row{gap:6px; margin-bottom:8px}
-  .card{padding:10px; border-radius:10px}
-  table{font-size:12px}
-  th,td{padding:7px 5px}
-  .btn{padding:6px 8px; font-size:12px}
-  input[type=number]{width:82px; font-size:12px}
-  th:nth-child(10), td:nth-child(10){white-space:nowrap}
-}
-</style>
-</head><body>
-<div class="header"><h1>LoRa Mesh Monitor</h1><div id="clock" class="clock">--</div></div>
-<div class="card">
-  <div class="row">
-    <div class="small" id="wifi" style="flex:1"></div>
-    <input id="addr" type="number" min="1" max="255" placeholder="addr"/>
-    <button class="btn" onclick="addNode()">추가</button>
-    <button class="btn" onclick="delNode()">삭제</button>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+  <title>LoRa Mesh Monitor</title>
+  <style>
+    :root{
+      --bg:#0b1020; --card:#131a33; --muted:#a8b4d4; --text:#e9eef5; --line:#223;
+      --accent:#2a345e; --accentH:#364178; --okbg:#19381f; --okfg:#7CFF9E;
+      --failbg:#3a1620; --failfg:#ffa3b6; --low:#ff5a6b;
+    }
+    *{box-sizing:border-box}
+    body{font-family:system-ui,Segoe UI,Arial,sans-serif; padding:14px; background:var(--bg); color:var(--text); margin:0;}
+    .header{display:flex; align-items:flex-end; justify-content:space-between; margin:0 0 10px}
+    h1{font-size:19px; margin:0}
+    .clock{font-size:11.5px; color:var(--muted); opacity:.9}
+    .row{display:flex; gap:8px; align-items:center; margin:0 0 10px}
+    .card{background:var(--card); border-radius:12px; padding:10px; box-shadow:0 2px 10px rgba(0,0,0,.35)}
+    table{width:100%; border-collapse:collapse; font-size:13px}
+    th,td{padding:8px 6px; border-bottom:1px solid var(--line)}
+    th{text-align:left; color:var(--muted); font-weight:600}
+    td.num, th.num{text-align:center}
+    .badge{padding:2px 8px; border-radius:12px; font-size:12px; display:inline-block}
+    .ok{background:var(--okbg); color:var(--okfg)}
+    .fail{background:var(--failbg); color:var(--failfg)}
+    .lowbat{color:var(--low); font-weight:700;}
+    .btn{padding:6px 10px; border-radius:8px; border:none; cursor:pointer; background:var(--accent); color:var(--text); font-size:12.5px}
+    .btn:hover{background:var(--accentH)}
+    .small{color:var(--muted); font-size:11.5px}
+    input[type=number]{width:100px; padding:6px 8px; border-radius:8px; border:1px solid var(--line); background:#0e1630; color:#e9eef5; font-size:12.5px}
+    @media (max-width:420px){
+      body{padding:10px}
+      .header{margin-bottom:8px}
+      h1{font-size:18px}
+      .clock{font-size:11px}
+      .row{gap:6px; margin-bottom:8px}
+      .card{padding:10px; border-radius:10px}
+      table{font-size:12px}
+      th,td{padding:7px 5px}
+      .btn{padding:6px 8px; font-size:12px}
+      input[type=number]{width:82px; font-size:12px}
+      th:nth-child(10), td:nth-child(10){white-space:nowrap}
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>LoRa Mesh Monitor</h1>
+    <div id="clock" class="clock">--</div>
   </div>
-  <table>
-    <thead>
-      <tr>
-        <th class="num">Node</th><th class="num">BAT (V)</th><th class="num">T (°C)</th>
-        <th class="num">RH (%)</th><th class="num">CO2 (ppm)</th><th class="num">LED</th>
-        <th class="num">RSSI</th><th class="num">Last OK (s)</th><th>Status</th><th>Control</th><th>노드</th>
-      </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-  </table>
-</div>
+
+  <div class="card">
+    <div class="row">
+      <div class="small" id="wifi" style="flex:1"></div>
+      <input id="addr" type="number" min="1" max="255" placeholder="addr"/>
+      <button class="btn" onclick="addNode()">추가</button>
+      <button class="btn" onclick="delNode()">삭제</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th class="num">Node</th><th class="num">BAT (V)</th><th class="num">T (°C)</th>
+          <th class="num">RH (%)</th><th class="num">CO2 (ppm)</th><th class="num">LED</th>
+          <th class="num">RSSI</th><th class="num">Last OK (s)</th><th>Status</th><th>Control</th><th>노드</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
 <script>
-function updateClock(){
-  const n = new Date(), p = s=>s.toString().padStart(2,'0');
-  document.getElementById('clock').textContent =
-    `${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())} ${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
-}
-async function fetchMetrics(){
-  try{
-    const r = await fetch('/metrics',{cache:'no-store'});
-    const j = await r.json();
-    document.getElementById('wifi').textContent =
-      'ESP32 IP: '+ j.ip +' | Uptime: '+ j.uptime_s +'s | Nodes: '+ (j.nodes?.length ?? 0);
-    const tb = document.getElementById('tbody'); tb.innerHTML='';
-    (j.nodes||[]).forEach(n=>{
-      const statusOk = n.status==='OK';
-      const statusCell = statusOk ? '<span class="badge ok">OK</span>' : '<span class="badge fail">-</span>';
-      const tTxt  = (n.t===null)? 'NA' : Number(n.t).toFixed(1);
-      const rhTxt = (n.rh===null)? 'NA' : String(n.rh);
-      const cTxt  = (n.co2===null)? 'NA' : String(n.co2);
-      const ledTxt = (n.led===0||n.led===1)? n.led : '-';
-      const toggleBtn = `<button class="btn" onclick="toggleLed(${n.addr},${(n.led===0||n.led===1)?n.led:'null'})">ON/OFF</button>`;
-      const low = (n.bat!==null && typeof n.bat==='number' && n.bat < 3.0);
-      const nodeCell = `<td class="num ${low?'lowbat':''}">${n.addr}</td>`;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        ${nodeCell}
-        <td class="num">${(n.bat??'-')}</td>
-        <td class="num">${tTxt}</td>
-        <td class="num">${rhTxt}</td>
-        <td class="num">${cTxt}</td>
-        <td class="num">${ledTxt}</td>
-        <td class="num">${(n.rssi??'-')}</td>
-        <td class="num">${(n.last_ok_s??'-')}</td>
-        <td>${statusCell}</td>
-        <td>${toggleBtn}</td>
-        <td><button class="btn" onclick="delNode(${n.addr})">삭제</button></td>`;
-      tb.appendChild(tr);
-    });
-  }catch(e){ console.error(e); }
-}
-async function toggleLed(addr,current){
-  const want = (current===0)?1:((current===1)?0:1);
-  try{
-    const r=await fetch('/cmd?node='+addr+'&led='+want,{method:'POST'});
-    const j=await r.json();
-    if(!j.ok) console.error('LED toggle failed', addr);
-    fetchMetrics();
-  }catch(e){ console.error('toggleLed request error', e); }
-}
-async function addNode(){
-  const a = Number(document.getElementById('addr').value);
-  if(!a || a<1 || a>255){ console.error('bad addr'); return; }
-  try{
-    const r = await fetch('/nodes/add?addr='+a,{method:'POST'});
-    const j = await r.json();
-    if(!j.ok) console.error('addNode failed', j.err || '');
-    fetchMetrics();
-  }catch(e){ console.error('addNode request error', e); }
-}
-async function delNode(addr){
-  const a = (typeof addr==='number') ? addr : Number(document.getElementById('addr').value);
-  if(!a || a<1 || a>255){ console.error('bad addr'); return; }
-  try{
-    const r = await fetch('/nodes/del?addr='+a,{method:'POST'});
-    const j = await r.json();
-    if(!j.ok) console.error('delNode failed', j.err || '');
-    fetchMetrics();
-  }catch(e){ console.error('delNode request error', e); }
-}
-setInterval(fetchMetrics,1500); fetchMetrics();
-setInterval(updateClock,1000); updateClock();
-</script></body></html>
-)HTML";
+  // 같은 출처(게이트웨이에서 직접 서비스) 가정 → 상대경로 사용
+  const api = {
+    metrics: () => fetchUrl('/metrics'),
+    cmd    : (addr,led) => fetchUrl('/cmd?node='+addr+'&led='+led, {method:'POST'}),
+    add    : (addr) => fetchUrl('/nodes/add?addr='+addr, {method:'POST'}),
+    del    : (addr) => fetchUrl('/nodes/del?addr='+addr, {method:'POST'}),
+  };
+
+  async function fetchUrl(path, opt){
+    const res = await fetch(path, Object.assign({cache:'no-store'}, opt||{}));
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const ct = res.headers.get('content-type')||'';
+    if(ct.includes('application/json')) return res.json();
+    return res.text();
+  }
+
+  function updateClock(){
+    const n = new Date(), p = s=>s.toString().padStart(2,'0');
+    document.getElementById('clock').textContent =
+      `${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())} ${p(n.getHours())}:${p(n.getMinutes())}:${p(n.getSeconds())}`;
+  }
+
+  async function fetchMetrics(){
+    try{
+      const j = await api.metrics();
+      document.getElementById('wifi').textContent =
+        'ESP32 IP: '+ j.ip +' | Uptime: '+ j.uptime_s +'s | Nodes: '+ (j.nodes?.length ?? 0);
+
+      const tb = document.getElementById('tbody'); tb.innerHTML='';
+      (j.nodes||[]).forEach(n=>{
+        const statusOk = n.status==='OK';
+        const statusCell = statusOk ? '<span class="badge ok">OK</span>' : '<span class="badge fail">-</span>';
+        const tTxt  = (n.t===null)? 'NA' : Number(n.t).toFixed(1);
+        const rhTxt = (n.rh===null)? 'NA' : String(n.rh);
+        const cTxt  = (n.co2===null)? 'NA' : String(n.co2);
+        const ledTxt = (n.led===0||n.led===1)? n.led : '-';
+        const toggleBtn = `<button class="btn" onclick="toggleLed(${n.addr},${(n.led===0||n.led===1)?n.led:'null'})">ON/OFF</button>`;
+        const low = (n.bat!==null && typeof n.bat==='number' && n.bat < 3.0);
+        const nodeCell = `<td class="num ${low?'lowbat':''}">${n.addr}</td>`;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          ${nodeCell}
+          <td class="num">${(n.bat??'-')}</td>
+          <td class="num">${tTxt}</td>
+          <td class="num">${rhTxt}</td>
+          <td class="num">${cTxt}</td>
+          <td class="num">${ledTxt}</td>
+          <td class="num">${(n.rssi??'-')}</td>
+          <td class="num">${(n.last_ok_s??'-')}</td>
+          <td>${statusCell}</td>
+          <td>${toggleBtn}</td>
+          <td><button class="btn" onclick="delNode(${n.addr})">삭제</button></td>`;
+        tb.appendChild(tr);
+      });
+    }catch(e){
+      console.error('metrics error', e);
+    }
+  }
+
+  async function toggleLed(addr,current){
+    const want = (current===0)?1:((current===1)?0:1);
+    try{
+      const j = await api.cmd(addr, want);
+      if(!j.ok) console.error('LED toggle failed', addr);
+      fetchMetrics();
+    }catch(e){ console.error('toggleLed error', e); }
+  }
+
+  async function addNode(){
+    const a = Number(document.getElementById('addr').value);
+    if(!a || a<1 || a>255){ console.error('bad addr'); return; }
+    try{
+      const j = await api.add(a);
+      if(!j.ok) console.error('addNode failed', j.err || '');
+      fetchMetrics();
+    }catch(e){ console.error('addNode error', e); }
+  }
+
+  async function delNode(addr){
+    const a = (typeof addr==='number') ? addr : Number(document.getElementById('addr').value);
+    if(!a || a<1 || a>255){ console.error('bad addr'); return; }
+    try{
+      const j = await api.del(a);
+      if(!j.ok) console.error('delNode failed', j.err || '');
+      fetchMetrics();
+    }catch(e){ console.error('delNode error', e); }
+  }
+
+  setInterval(fetchMetrics,1500); fetchMetrics();
+  setInterval(updateClock,1000); updateClock();
+</script>
+</body>
+</html>
