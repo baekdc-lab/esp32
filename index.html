@@ -15,21 +15,24 @@ input,button{font-size:12.5px} input{padding:6px 8px; border-radius:8px; border:
 .btn{padding:6px 10px; border:none; border-radius:8px; background:var(--accent); color:var(--text); cursor:pointer}
 .btn:hover{background:var(--accentH)}
 .small{color:var(--muted); font-size:11.5px}
+.bad{color:#ff8aa0}
+.ok{color:#7CFF9E}
 table{width:100%; border-collapse:collapse; font-size:13px}
 th,td{padding:8px 6px; border-bottom:1px solid var(--line)} th{text-align:left; color:var(--muted); font-weight:600}
 td.num, th.num{text-align:center} .badge{padding:2px 8px; border-radius:12px; font-size:12px; display:inline-block}
-.ok{background:var(--okbg); color:var(--okfg)} .fail{background:var(--failbg); color:var(--failfg)}
+.statOK{background:var(--okbg); color:var(--okfg)} .statFail{background:var(--failbg); color:var(--failfg)}
 .lowbat{color:var(--low); font-weight:700;}
 @media (max-width:420px){ body{padding:10px} h1{font-size:18px} .card{padding:10px} table{font-size:12px} th,td{padding:7px 5px} }
 </style>
-<!-- MQTT.js (browser) -->
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
 <div class="header"><h1>LoRa Mesh Monitor (MQTT)</h1><div id="clock" class="clock">--</div></div>
 <div class="card">
-  <div class="row">
-    <div class="small" id="brokerInfo" style="flex:1"></div>
+  <div class="row" style="gap:12px; flex-wrap:wrap">
+    <div class="small" id="brokerInfo" style="flex:1">-</div>
+    <div class="small">상태: <span id="connState" class="bad">연결 중...</span></div>
+    <div class="small">알림: <span id="lastMsg" class="small">-</span></div>
     <input id="addr" type="number" min="1" max="255" placeholder="addr"/>
     <button class="btn" onclick="sendCmd('LED:1')">LED ON</button>
     <button class="btn" onclick="sendCmd('LED:0')">LED OFF</button>
@@ -48,10 +51,14 @@ td.num, th.num{text-align:center} .badge{padding:2px 8px; border-radius:12px; fo
 </div>
 
 <script>
-const WS_URL = "ws://test.mosquitto.org:8080/mqtt";         // WebSocket MQTT
+const WS_URL = "ws://test.mosquitto.org:8080/mqtt";   // WebSocket MQTT
 const TOPIC_NODE = "tswell/mesh/node/+";
-const TOPIC_CMD  = "tswell/mesh/cmd/";                       // + addr
+const TOPIC_CMD  = "tswell/mesh/cmd/";                 // + addr
+const TOPIC_GW_ON = "tswell/mesh/gw/online";           // "1"(online retained), "0"(LWT)
 document.getElementById('brokerInfo').textContent = "Broker: "+WS_URL+" | Topic: "+TOPIC_NODE;
+
+function setStateOK(b){ const x=document.getElementById('connState'); x.textContent=b?"연결됨":"연결 중..."; x.className=b?"ok":"bad"; }
+function info(msg){ document.getElementById('lastMsg').textContent = msg; }
 
 function updateClock(){
   const n = new Date(), p = s=>s.toString().padStart(2,'0');
@@ -64,20 +71,28 @@ const clientId = "web-"+Math.random().toString(16).slice(2);
 const client = mqtt.connect(WS_URL, { clientId, clean:true });
 
 client.on('connect', () => {
-  client.subscribe(TOPIC_NODE, {qos:0});
+  setStateOK(true);
+  client.subscribe(TOPIC_NODE, {qos:0}, (e)=>{ if(e) info("구독 오류: "+e.message); });
+  client.subscribe(TOPIC_GW_ON, {qos:0});
+  info("브로커 연결/구독 완료");
 });
+client.on('reconnect', ()=>{ setStateOK(false); info("재연결 시도 중"); });
+client.on('close', ()=>{ setStateOK(false); info("연결 종료"); });
+client.on('error', (e)=>{ setStateOK(false); info("에러: "+(e?.message||e)); });
 
 client.on('message', (topic, payload) => {
   try{
+    if(topic===TOPIC_GW_ON){ info("GW online="+payload.toString()); return; }
     const j = JSON.parse(payload.toString());
     upsertRow(j);
-  }catch(e){ console.error('bad payload', e, payload.toString()); }
+  }catch(e){ info("수신데이터 오류"); console.error('bad payload', e, payload.toString()); }
 });
 
 function sendCmd(cmd){
   const a = Number(document.getElementById('addr').value);
   if(!a || a<1 || a>255){ alert('addr 1~255'); return; }
   client.publish(TOPIC_CMD + a, cmd);
+  info("명령 전송: "+cmd+" → "+a);
 }
 
 const rows = new Map(); // addr -> tr
@@ -85,7 +100,7 @@ function upsertRow(n){
   const tb = document.getElementById('tbody');
   let tr = rows.get(n.addr);
   const statusOk = (n.status==='OK');
-  const statusCell = statusOk ? '<span class="badge ok">OK</span>' : '<span class="badge fail">-</span>';
+  const statusCell = statusOk ? '<span class="badge statOK">OK</span>' : '<span class="badge statFail">-</span>';
   const low = (typeof n.bat==='number' && n.bat < 3.0);
   const nodeCell = `<td class="num ${low?'lowbat':''}">${n.addr}</td>`;
   const tTxt  = (n.t==null)? 'NA' : Number(n.t).toFixed(1);
