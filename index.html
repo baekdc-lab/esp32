@@ -8,70 +8,66 @@
 :root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63}
 :root.light{--bg:#f5f7fa;--card:#ffffff;--txt:#0b1020;--mut:#5a6b8a;--line:#ccd4e0;--btn-bg:#e4e8ef;--btn-border:#b0bacb}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif;transition:background .3s,color .3s}
+body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif}
 .wrap{max-width:900px;margin:20px auto;padding:0 12px}
-.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);transition:background .3s}
+.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
-.mut{color:var(--mut);margin:0 0 12px}
-.status{margin-top:8px;color:var(--mut);font-size:14px;white-space:pre-line}
-hr{border:0;border-top:1px solid var(--line);margin:14px 0;transition:border-color .3s}
+.mut{color:var(--mut);margin:0 0 8px}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+.theme-toggle{cursor:pointer;font-size:22px;user-select:none}
 
-/* Theme toggle */
-.theme-toggle{cursor:pointer;font-size:22px;user-select:none;transition:transform .2s}
-.theme-toggle:hover{transform:scale(1.15)}
-
-/* KPI Tiles */
+/* KPI */
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
-.tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px;transition:background .3s}
+.tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px}
 :root.light .tile{background:#eef1f7}
 .v{font-size:22px;font-weight:800;margin-top:4px}
 
-/* LED 버튼 */
+/* LED */
 .led{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
 .btn{border:0;color:#fff;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:800;min-width:98px;font-size:15px;transition:all .2s}
 .btn.on{background:#2d6bff;} .btn.off{background:#32405e;} .btn.active{background:#00cc66;} .btn.dim{background:#1b2236;}
-.btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
+.led-status{font-size:13px;color:var(--mut);position:relative;top:4px}
 
-/* 토글 버튼 한 줄 */
+/* 토글 */
+.btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
 .toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
 
-/* 숨김/펼침 애니메이션 */
-.collapsible{max-height:0;overflow:hidden;transition:max-height .5s ease,padding .3s ease,opacity .3s ease;opacity:0}
-.collapsible.open{max-height:2000px;padding-top:6px;opacity:1}
+/* 접힘 */
+.collapsible{max-height:0;overflow:hidden;transition:max-height .4s ease,opacity .3s ease;opacity:0}
+.collapsible.open{max-height:2000px;opacity:1}
 
-/* ===== 테이블 ===== */
-.tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh;transition:background .3s}
+/* 테이블 */
+.tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh}
 :root.light .tablewrap{background:#eef1f7}
-table{border-collapse:collapse;width:auto;min-width:100%;table-layout:auto}
-thead th{position:sticky;top:0;z-index:2;background:#12203a;white-space:nowrap;transition:background .3s}
+table{border-collapse:collapse;width:auto;min-width:100%}
+thead th{position:sticky;top:0;background:#12203a}
 :root.light thead th{background:#d6deec}
-th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:13px;line-height:1.5;transition:border-color .3s}
-th:first-child,td:first-child{text-align:center;padding-left:0;padding-right:4px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:13px}
+th:first-child,td:first-child{text-align:center}
 th:nth-child(1){width:54px}
 th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5){width:63px}
 th:nth-child(6){width:72px}
 th:nth-child(7){width:52px}
 
-/* ===== Charts ===== */
+/* 차트 */
 .charts{margin-top:14px;display:grid;grid-template-columns:1fr;gap:12px}
-.chart{background:#0f1526;border-radius:12px;padding:10px;transition:background .3s}
+.chart{background:#0f1526;border-radius:12px;padding:10px}
 :root.light .chart{background:#eef1f7}
-.chart h3{margin:0 0 8px;font-size:15px;color:var(--mut);font-weight:700}
+.chart h3{margin:0 0 8px;font-size:15px;color:var(--mut)}
 .canvas-wrap{position:relative;width:100%;height:200px}
-.canvas-wrap canvas{position:absolute;left:0;top:0;width:100%;height:100%}
+.canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%}
 
-#raw{white-space:pre-line;font-size:12px;color:var(--mut)}
+/* 하단 */
 #foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--mut);margin-top:4px}
 #foot > span{white-space:nowrap}
-</style></head><body>
+</style>
+</head>
+<body>
 <div class="wrap"><div class="card">
-  <h1>ESP32 센서 대시보드
-    <span class="theme-toggle" id="themeToggle">🌙</span>
-  </h1>
+  <h1>ESP32 센서 대시보드 <span class="theme-toggle" id="themeToggle">🌙</span></h1>
   <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
-
-  <!-- 기본 숨김: 연속 실패 시에만 보임 -->
-  <div id="banner" class="status" style="display:none"></div>
+  <!-- 3번째 줄: 연동포인트 표시(항상 표시, 깜빡임 없음) -->
+  <p class="mut" id="endpoint">연동포인트: -</p>
 
   <div class="grid">
     <div class="tile"><div>AHT25 온도</div><div id="aht_t" class="v">--.- °C</div></div>
@@ -84,7 +80,7 @@ th:nth-child(7){width:52px}
   <div class="led">
     <button id="on"  class="btn on">LED ON</button>
     <button id="off" class="btn off">LED OFF</button>
-    <div id="led" class="status">LED: -</div>
+    <div id="led" class="led-status">LED: -</div>
   </div>
 
   <hr>
@@ -116,104 +112,94 @@ th:nth-child(7){width:52px}
   </div>
 
   <hr>
-  <div class="status" id="raw">—</div>
   <div id="foot"><span id="rssi">RSSI: -- [dBm]</span><span id="ts">—</span></div>
 </div></div>
 
 <script>
 const $=s=>document.querySelector(s);
-const fastMs=3000, maxRows=60;
 
-/* Theme */
+/* 테마 */
 const themeToggle=$('#themeToggle');
 function applyTheme(t){document.documentElement.classList.toggle('light',t==='light');themeToggle.textContent=(t==='light')?'☀️':'🌙';renderAllCharts();}
 applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
 
-/* Toggle buttons */
-function setToggle(btn,sec,labelShow,labelHide){
-  const sync=()=>btn.textContent=sec.classList.contains('open')?labelHide:labelShow;
-  btn.addEventListener('click',()=>{sec.classList.toggle('open');sync();if(sec.id==='graphSection'&&sec.classList.contains('open'))renderAllCharts();});
-  sync();
+/* BASE / 엔드포인트 표시 */
+const LS_LAST_STATUS='esp32_last_status';
+const LS_BASE='base';
+let BASE=(localStorage.getItem(LS_BASE)||'').replace(/\/$/,'');
+const CANDS=[]; if(BASE) CANDS.push(BASE); CANDS.push('http://esp32.local','http://192.168.31.204');
+
+function setEndpointText(){ $('#endpoint').textContent = '연동포인트: ' + (BASE||'-'); }
+setEndpointText();
+
+async function tryStatus(b){ try{const r=await fetch(b+'/api/status',{cache:'no-store'}); return r.ok }catch{return false} }
+async function discoverBase(){ for(const b of CANDS){ if(await tryStatus(b)){ BASE=b; localStorage.setItem(LS_BASE,b); setEndpointText(); return true; } } return false; }
+
+/* API 후보 */
+const EP={
+  status:['/api/status','/status','/readings','/get','/api/readings'],
+  history60:['/api/history?limit=60','/history?limit=60','/api/history','/history','/logs'],
+  history1:['/api/history?limit=1','/history?limit=1','/api/history','/history'],
+  ledOn:['/api/led?state=on','/led/on','/api/led/on','/set?led=1'],
+  ledOff:['/api/led?state=off','/led/off','/api/led/off','/set?led=0']
+};
+async function fetchFirstJson(paths,opt={}){ for(const p of paths){ const u=(/^https?:\/\//.test(p)?p:(BASE+p)); try{ const r=await fetch(u,{...opt,cache:'no-store'}); if(!r.ok) continue; return await r.json(); }catch{} } throw new Error('모든 경로 실패'); }
+
+/* 캐시 우선 표시(깜빡임 방지) */
+(function(){ const raw=localStorage.getItem(LS_LAST_STATUS); if(!raw) return; try{applyStatus(JSON.parse(raw),true)}catch{} })();
+
+/* 값 적용 */
+function syncButtons(isOn){ const on=$('#on'), off=$('#off'); on.classList.remove('active','dim'); off.classList.remove('active','dim'); if(isOn){ on.classList.add('active'); off.classList.add('dim'); } else { off.classList.add('active'); on.classList.add('dim'); } }
+function applyStatus(s,fromCache=false){
+  const aT=Number(s.aht_t), aH=Number(s.aht_h), sT=Number(s.scd_t), sH=Number(s.scd_h), co=Number(s.co2);
+  const led=(s.led=='1'||s.led===1||s.led===true||s.led==='on');
+
+  if(!Number.isNaN(aT)) $('#aht_t').textContent=aT.toFixed(1)+' °C';
+  if(!Number.isNaN(aH)) $('#aht_h').textContent=Math.round(aH)+' %';
+  if(!Number.isNaN(sT)) $('#scd_t').textContent=sT.toFixed(1)+' °C';
+  if(!Number.isNaN(sH)) $('#scd_h').textContent=Math.round(sH)+' %';
+  if(!Number.isNaN(co)&&co>0) $('#scd_c').textContent=co+' ppm';
+
+  $('#led').textContent='LED: '+(led?'ON':'OFF'); syncButtons(led);
+  if(typeof s.rssi!=='undefined') $('#rssi').textContent=`RSSI: ${s.rssi} [dBm]`;
+  if(!fromCache) localStorage.setItem(LS_LAST_STATUS, JSON.stringify(s));
+  $('#ts').textContent=fmtNow();
 }
-setToggle($('#toggleTable'),$('#tableSection'),'📋 테이블 보기','📋 테이블 숨기기');
-setToggle($('#toggleGraph'),$('#graphSection'),'📊 그래프 보기','📊 그래프 숨기기');
 
-/* Endpoints */
-const BASE=(()=>{const u=new URL(location.href);const q=u.searchParams.get('base');if(q)return q.replace(/\/$/,'');const s=localStorage.getItem('base');return (s?s:'http://192.168.31.204');})();
-const EP={status:['/api/status','/status','/readings','/get','/api/readings'],history60:['/api/history?limit=60','/history?limit=60','/api/history','/history','/logs'],history1:['/api/history?limit=1','/history?limit=1','/api/history','/history'],ledOn:['/api/led?state=on','/led/on','/api/led/on','/set?led=1'],ledOff:['/api/led?state=off','/led/off','/api/led/off','/set?led=0']};
-async function fetchFirstJson(cands,opt={}){for(const u of cands){const url=/^https?:\/\//.test(u)?u:(BASE+u);try{const r=await fetch(url,{...opt,cache:'no-store'});if(!r.ok)continue;return await r.json();}catch(e){}}throw new Error('모든 경로 실패');}
+/* 주기 상태 폴링(에러 문구 완전 미표시) */
+const fastMs=3000, maxRows=60;
+async function refreshFast(){ try{ const s=await fetchFirstJson(EP.status); applyStatus(s,false); }catch{} }
+function fmtNow(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
 
-/* Formatters */
-const fmtT=v=>v==null?'--.-':Number(v).toFixed(1);
-const fmtP=v=>v==null?'--':Math.round(Number(v));
-const fmtC=v=>v==null?'----':Number(v);
+/* 테이블/그래프 토글 */
+const secTable=$('#tableSection'), secGraph=$('#graphSection');
+document.getElementById('toggleTable').onclick=()=>{ const open=secTable.classList.toggle('open'); document.getElementById('toggleTable').textContent=open?'📋 테이블 숨기기':'📋 테이블 보기'; if(open && !document.getElementById('logtbl').children.length) loadHistory60(); };
+document.getElementById('toggleGraph').onclick=()=>{ const open=secGraph.classList.toggle('open'); document.getElementById('toggleGraph').textContent=open?'📊 그래프 숨기기':'📊 그래프 보기'; if(open) renderAllCharts(); };
 
-/* LED 버튼 상태 */
-function syncButtons(led){const on=$('#on'),off=$('#off');on.classList.remove('active','dim');off.classList.remove('active','dim');if(led){on.classList.add('active');off.classList.add('dim');}else{off.classList.add('active');on.classList.add('dim');}}
+/* 테이블/히스토리 */
+function addRowTop(o,ts){ const tbody=document.getElementById('logtbl'); const d=ts?new Date(ts):new Date(); const hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0'); const tr=document.createElement('tr'); tr.innerHTML=`<td>${hh}:${mm}</td><td>${Number(o.aht_t).toFixed(1)}</td><td>${Math.round(Number(o.aht_h))}</td><td>${Number(o.scd_t).toFixed(1)}</td><td>${Math.round(Number(o.scd_h))}</td><td>${o.co2}</td><td>${(o.led?'ON':'OFF')}</td>`; if(tbody.firstChild) tbody.insertBefore(tr,tbody.firstChild); else tbody.appendChild(tr); while(tbody.rows.length>maxRows) tbody.deleteRow(tbody.rows.length-1); }
+async function loadHistory60(){ try{ const list=await fetchFirstJson(EP.history60); const tbody=document.getElementById('logtbl'); tbody.innerHTML=''; const now=Date.now(); for(const it of list){ const ts=it.timestamp?new Date(it.timestamp):new Date(now-(it.age||0)*60000); addRowTop(it,ts); } }catch{} }
 
-/* 데이터 버퍼 */
+/* 미니 차트(점선 없음) */
 let histBuf=[];
-/* 오류 누적(배너 표시 억제용) */
-let errCount=0;
-
-/* 시각 */
-function fmtNow(){const d=new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
-function tickClock(){ $('#ts').textContent = fmtNow(); }
-
-/* 상태 폴링 */
-async function refreshFast(){
-  try{
-    const s=await fetchFirstJson(EP.status);
-    errCount=0; const banner=$('#banner'); banner.style.display='none'; banner.textContent='';
-
-    const aht_t=s.aht_t??s.aht_temp??s.temp??s.aht?.t;
-    const aht_h=s.aht_h??s.aht_hum ??s.hum ??s.aht?.h;
-    const scd_t=s.scd_t??s.scd_temp??s.st   ??s.scd?.t;
-    const scd_h=s.scd_h??s.scd_hum ??s.sh   ??s.scd?.h;
-    const co2  =s.co2  ??s.scd_co2 ??s.ppm  ??s.scd?.co2;
-    const led  =(s.led=='1'||s.led===1||s.led==='on'||s.led===true);
-
-    $('#aht_t').textContent=aht_t!=null?Number(aht_t).toFixed(1)+' °C':'--.- °C';
-    $('#aht_h').textContent=aht_h!=null?Math.round(Number(aht_h))+' %':'-- %';
-    $('#scd_t').textContent=scd_t!=null?Number(scd_t).toFixed(1)+' °C':'--.- °C';
-    $('#scd_h').textContent=scd_h!=null?Math.round(Number(scd_h))+' %':'-- %';
-    $('#scd_c').textContent=co2!=null?(co2+' ppm'):'---- ppm';
-    $('#led').textContent='LED: '+(led?'ON':'OFF');
-    syncButtons(led);
-
-    const top2=[`AHT25: ${fmtT(aht_t)} °C | ${fmtP(aht_h)} % | LED=${led?'ON':'OFF'}`,
-                `SCD42: ${fmtT(scd_t)} °C | ${fmtP(scd_h)} % | ${fmtC(co2)} ppm | LED=${led?'ON':'OFF'}`].join('\n');
-    $('#raw').textContent=top2;
-
-    $('#rssi').textContent=`RSSI: ${s.rssi!=null? (s.rssi+' [dBm]') : '-- [dBm]'}`;
-    tickClock();
-  }catch(e){
-    // 첫 실패는 조용히 무시(배너 숨김). 연속 2회 이상 실패 시에만 표시.
-    errCount++;
-    if(errCount>=2){
-      const banner=$('#banner');
-      banner.textContent='통신 오류: '+e.message;
-      banner.style.display='block';
-    }
-    tickClock();
-  }
-}
-
-/* History (table + charts) */
-function normalizeRec(o){return{aht_t:Number(o.aht_t??o.aht_temp??o.temp??o.at)||NaN,aht_h:Number(o.aht_h??o.aht_hum??o.hum??o.ah)||NaN,scd_t:Number(o.scd_t??o.scd_temp??o.st)||NaN,scd_h:Number(o.scd_h??o.scd_hum??o.sh)||NaN,co2:Number(o.co2??o.scd_co2??o.ppm)||NaN,led:(o.led=='1'||o.led===1||o.led==='on')?1:0};}
-function addRowTop(obj, ts){const tbody=$('#logtbl');const d=ts?new Date(ts):new Date();const hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0');const tr=document.createElement('tr');tr.innerHTML=`<td>${hh}:${mm}</td><td>${fmtT(obj.aht_t)}</td><td>${fmtP(obj.aht_h)}</td><td>${fmtT(obj.scd_t)}</td><td>${fmtP(obj.scd_h)}</td><td>${fmtC(obj.co2)}</td><td>${obj.led?'ON':'OFF'}</td>`;if(tbody.firstChild)tbody.insertBefore(tr,tbody.firstChild);else tbody.appendChild(tr);while(tbody.rows.length>maxRows)tbody.deleteRow(tbody.rows.length-1);}
-async function loadHistory60(){try{const list=await fetchFirstJson(EP.history60);const tbody=$('#logtbl');tbody.innerHTML='';histBuf=[];const now=Date.now();for(const it of list){const ts=it.timestamp?new Date(it.timestamp):new Date(now-(it.age||0)*60000);addRowTop(it,ts);histBuf.push(normalizeRec(it));}while(histBuf.length>maxRows)histBuf.shift();}catch(e){}}
-async function refreshLogOne(){try{const one=await fetchFirstJson(EP.history1);const it=Array.isArray(one)?one[0]:one;if(!it)return;const now=Date.now();const ts=it.timestamp?new Date(it.timestamp):new Date(now-(it.age||0)*60000);addRowTop(it,ts);histBuf.push(normalizeRec(it));if(histBuf.length>maxRows)histBuf.shift();renderAllCharts();}catch(e){}}
-
-/* Mini chart engine (no dotted gaps) */
 const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(c){const r=c.getBoundingClientRect();const w=Math.max(1,r.width),h=Math.max(1,r.height);c.width=Math.floor(w*dpr());c.height=Math.floor(h*dpr());const ctx=c.getContext('2d');ctx.setTransform(dpr(),0,0,dpr(),0,0);return ctx;}
-function drawChart(c, series, opts={}){const ctx=prepCanvas(c);const W=Math.max(1,c.getBoundingClientRect().width),H=Math.max(1,c.getBoundingClientRect().height);const padL=38,padR=10,padT=opts.legend?32:10,padB=26,plotW=Math.max(1,W-padL-padR),plotH=Math.max(1,H-padT-padB);const light=document.documentElement.classList.contains('light');ctx.clearRect(0,0,W,H);ctx.fillStyle=light?'#eef1f7':'#0f1526';ctx.fillRect(0,0,W,H);ctx.strokeStyle=light?'#ccd4e0':'#22314f';ctx.beginPath();for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}ctx.stroke();ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+6);}const vals=[];for(const s of series){for(const v of s.data){if(Number.isFinite(v))vals.push(v);}}let vmin=Math.min(...(vals.length?vals:[0])),vmax=Math.max(...(vals.length?vals:[1]));if(vmax===vmin){vmax=vmin+1;}const pad=(vmax-vmin)*0.1;vmin-=pad;vmax+=pad;ctx.textAlign='right';ctx.textBaseline='middle';for(let g=0;g<=4;g++){const y=padT+plotH*g/4,val=vmax-(vmax-vmin)*g/4;ctx.fillText(val.toFixed((vmax-vmin)<10?1:0),padL-6,y);}function xAt(i){return padL+plotW*(i/59)}function yAt(v){return padT+((vmax-v)/(vmax-vmin))*plotH}const colors=['#7aa0ff','#ff9a7a','#7affb0','#ffd67a','#c67aff'];let ci=0;for(const s of series){ctx.beginPath();ctx.lineWidth=2;ctx.strokeStyle=s.color||(colors[ci++%colors.length]);let moved=false;const N=s.data.length;for(let i=0;i<60;i++){const idx=i-(60-N);const v=(idx>=0&&idx<N)?s.data[idx]:NaN;const x=xAt(i);if(Number.isFinite(v)){const y=yAt(v);if(!moved){ctx.moveTo(x,y);moved=true;}else ctx.lineTo(x,y);}else moved=false;}ctx.stroke();}}
-function renderAllCharts(){if(!$('#graphSection').classList.contains('open'))return;const aht_t=histBuf.map(r=>r.aht_t),scd_t=histBuf.map(r=>r.scd_t);const aht_h=histBuf.map(r=>r.aht_h),scd_h=histBuf.map(r=>r.scd_h);const co2=histBuf.map(r=>r.co2);drawChart($('#chTemp'),[{name:'AHT25 온도',data:aht_t,color:'#7aa0ff'},{name:'SCD42 온도',data:scd_t,color:'#ff9a7a'}],{legend:true});drawChart($('#chHum'),[{name:'AHT25 습도',data:aht_h,color:'#7aa0ff'},{name:'SCD42 습도',data:scd_h,color:'#ff9a7a'}],{legend:true});drawChart($('#chCO2'),[{name:'SCD42 CO₂',data:co2,color:'#7aa0ff'}],{legend:true});}
+function drawChart(c, series, opts={}){const ctx=prepCanvas(c);const W=c.clientWidth,H=c.clientHeight;const padL=38,padR=10,padT=10,padB=26,plotW=W-padL-padR,plotH=H-padT-padB;const light=document.documentElement.classList.contains('light');ctx.clearRect(0,0,W,H);ctx.fillStyle=light?'#eef1f7':'#0f1526';ctx.fillRect(0,0,W,H);ctx.strokeStyle=light?'#ccd4e0':'#22314f';ctx.beginPath();for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}ctx.stroke();ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+6);}const vals=[];for(const s of series){for(const v of s.data){if(Number.isFinite(v))vals.push(v);}}let vmin=Math.min(...(vals.length?vals:[0])),vmax=Math.max(...(vals.length?vals:[1]));if(vmax===vmin){vmax=vmin+1;}const pad=(vmax-vmin)*0.1;vmin-=pad;vmax+=pad;ctx.textAlign='right';ctx.textBaseline='middle';for(let g=0;g<=4;g++){const y=padT+plotH*g/4,val=vmax-(vmax-vmin)*g/4;ctx.fillText(val.toFixed((vmax-vmin)<10?1:0),padL-6,y);}const colors=['#7aa0ff','#ff9a7a','#7affb0'];let ci=0;for(const s of series){ctx.beginPath();ctx.lineWidth=2;ctx.strokeStyle=s.color||(colors[ci++%colors.length]);let moved=false;const N=s.data.length;for(let i=0;i<60;i++){const idx=i-(60-N);const v=(idx>=0&&idx<N)?s.data[idx]:NaN;const x=padL+plotW*(i/59);if(Number.isFinite(v)){const y=padT+((vmax-v)/(vmax-vmin))*plotH;if(!moved){ctx.moveTo(x,y);moved=true;}else ctx.lineTo(x,y);}else moved=false;}ctx.stroke();}}
+function renderAllCharts(){if(!secGraph.classList.contains('open'))return;const aht_t=histBuf.map(r=>r.aht_t??NaN),scd_t=histBuf.map(r=>r.scd_t??NaN),aht_h=histBuf.map(r=>r.aht_h??NaN),scd_h=histBuf.map(r=>r.scd_h??NaN),co2=histBuf.map(r=>r.co2??NaN);drawChart(document.getElementById('chTemp'),[{data:aht_t,color:'#7aa0ff'},{data:scd_t,color:'#ff9a7a'}]);drawChart(document.getElementById('chHum'),[{data:aht_h,color:'#7aa0ff'},{data:scd_h,color:'#ff9a7a'}]);drawChart(document.getElementById('chCO2'),[{data:co2,color:'#7aa0ff'}]);}
 
-/* Boot */
-(async()=>{await loadHistory60();await refreshFast();setInterval(refreshFast,fastMs);setInterval(refreshLogOne,60000);$('#on').onclick=async()=>{await fetch(BASE+EP.ledOn[0],{cache:'no-store'});refreshFast();};$('#off').onclick=async()=>{await fetch(BASE+EP.ledOff[0],{cache:'no-store'});refreshFast();};setInterval(tickClock,1000);})();
+/* LED */
+document.getElementById('on').onclick=async()=>{ try{ await fetch(BASE+EP.ledOn[0],{cache:'no-store'}); }catch{} refreshFast(); };
+document.getElementById('off').onclick=async()=>{ try{ await fetch(BASE+EP.ledOff[0],{cache:'no-store'}); }catch{} refreshFast(); };
+
+/* 부트 */
+(async()=>{
+  if(!BASE || !(await tryStatus(BASE))) await discoverBase();
+  setEndpointText();
+  await refreshFast(); setInterval(refreshFast, 3000);
+  try{ const list=await fetchFirstJson(EP.history60); histBuf=list.map(x=>({aht_t:+(x.aht_t??x.aht_temp??x.temp),aht_h:+(x.aht_h??x.aht_hum??x.hum),scd_t:+(x.scd_t??x.scd_temp??x.st),scd_h:+(x.scd_h??x.scd_hum??x.sh),co2:+(x.co2??x.scd_co2??x.ppm)})); }catch{}
+  setInterval(()=>{ document.getElementById('ts').textContent = fmtNow(); },1000);
+})();
 </script>
 </body>
 </html>
