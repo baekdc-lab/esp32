@@ -80,7 +80,7 @@ th:nth-child(7){width:52px}
 </style></head><body>
 <div class="wrap"><div class="card">
   <h1>ESP32 센서 대시보드
-    <span class="theme-toggle" id="themeToggle">🌙</span>
+    <span class="theme-toggle" id="themeToggle">🌙</span><input id="baseInput" style="margin-left:8px;max-width:220px" placeholder="http://192.168.31.204" /><button class="btn toggle" id="saveBase" style="margin-left:6px">연결</button>
   </h1>
   <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
 
@@ -164,6 +164,15 @@ setToggle($('#toggleTable'),$('#tableSection'),'📋 테이블 보기','📋 테
 setToggle($('#toggleGraph'),$('#graphSection'),'📊 그래프 보기','📊 그래프 숨기기');
 
 /* ===== Resilient endpoints ===== */
+const BASE=(()=>{ 
+  const u=new URL(location.href); 
+  const q=u.searchParams.get('base'); 
+  if(q) return q.replace(/\/$/,''); 
+  const s=localStorage.getItem('base'); 
+  return (s?s:'http://192.168.31.204');
+})();
+  document.getElementById('baseInput').value=BASE; document.getElementById('saveBase').onclick=()=>setBase(document.getElementById('baseInput').value || BASE); 
+const setBase=(b)=>{ localStorage.setItem('base', b.replace(/\/$/,'')); location.reload(); };
 const EP = {
   status : ['/api/status','/status','/readings','/get','/api/readings'],
   history60: ['/api/history?limit=60','/history?limit=60','/api/history','/history','/logs'],
@@ -171,7 +180,7 @@ const EP = {
   ledOn  : ['/api/led?state=on','/led/on','/api/led/on','/set?led=1'],
   ledOff : ['/api/led?state=off','/led/off','/api/led/off','/set?led=0'],
 };
-async function fetchFirstJson(cands,opt={}){for(const u of cands){try{const r=await fetch(u,{...opt,cache:'no-store'});if(!r.ok)continue;return await r.json();}catch(e){}}throw new Error('모든 경로 실패');}
+async function fetchFirstJson(cands,opt={}){for(const u of cands){const url=/^https?:\/\//.test(u)?u:(BASE+u);try{const r=await fetch(url,{...opt,cache:'no-store'});if(!r.ok)continue;return await r.json();}catch(e){}}throw new Error('모든 경로 실패');}
 
 /* ===== Formatters ===== */
 const fmtT=v=>v==null?'--.-':Number(v).toFixed(1);
@@ -370,5 +379,6 @@ function renderAllCharts(){
   // 시계는 매초 갱신
   setInterval(tickClock, 1000);
 })();
+  document.getElementById('baseInput').value=BASE; document.getElementById('saveBase').onclick=()=>setBase(document.getElementById('baseInput').value || BASE);
 </script>
 </body></html>
