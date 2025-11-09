@@ -80,7 +80,7 @@ th:nth-child(7){width:52px}
 </style></head><body>
 <div class="wrap"><div class="card">
   <h1>ESP32 센서 대시보드
-    <span class="theme-toggle" id="themeToggle">🌙</span>
+    <span class="theme-toggle" id="themeToggle">🌙</span><input id="baseInput" style="margin-left:8px;max-width:220px" placeholder="http://192.168.31.204" /><button class="btn toggle" id="saveBase" style="margin-left:6px">연결</button>
   </h1>
   <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
 
@@ -152,7 +152,7 @@ function applyTheme(t){
   renderAllCharts();
 }
 applyTheme(localStorage.getItem('theme')||'dark');
-themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);} ;
+themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
 
 /* ===== Toggle buttons ===== */
 function setToggle(btn,sec,labelShow,labelHide){
@@ -171,6 +171,7 @@ const BASE=(()=>{
   const s=localStorage.getItem('base'); 
   return (s?s:'http://192.168.31.204');
 })();
+  document.getElementById('baseInput').value=BASE; document.getElementById('saveBase').onclick=()=>setBase(document.getElementById('baseInput').value || BASE); 
 const setBase=(b)=>{ localStorage.setItem('base', b.replace(/\/$/,'')); location.reload(); };
 const EP = {
   status : ['/api/status','/status','/readings','/get','/api/readings'],
@@ -373,11 +374,11 @@ function renderAllCharts(){
   await refreshFast();
   setInterval(refreshFast, fastMs);
   setInterval(refreshLogOne, 60000);
-  // ▼ LED 제어: BASE + 경로로 직접 호출 (상대경로 → 절대경로 수정)
-  $('#on').onclick  = async()=>{await fetch(BASE + EP.ledOn[0],  {cache:'no-store'});  refreshFast();};
-  $('#off').onclick = async()=>{await fetch(BASE + EP.ledOff[0], {cache:'no-store'});  refreshFast();};
+  $('#on').onclick  = async()=>{await fetch(EP.ledOn[0]);  refreshFast();};
+  $('#off').onclick = async()=>{await fetch(EP.ledOff[0]); refreshFast();};
   // 시계는 매초 갱신
   setInterval(tickClock, 1000);
 })();
+  document.getElementById('baseInput').value=BASE; document.getElementById('saveBase').onclick=()=>setBase(document.getElementById('baseInput').value || BASE);
 </script>
 </body></html>
