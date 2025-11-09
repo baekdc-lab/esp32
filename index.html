@@ -3,59 +3,36 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ESP32 센서 대시보드</title>
+  <title>ESP32 센서 대시보드 (고정 설정)</title>
   <style>
     :root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63;}
-    :root.light{--bg:#f5f7fa;--card:#ffffff;--txt:#0b1020;--mut:#5a6b8a;--line:#ccd4e0;--btn-bg:#e4e8ef;--btn-border:#b0bacb;}
     *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif;transition:background .3s,color .3s}
+    body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif}
     .wrap{max-width:900px;margin:20px auto;padding:0 12px}
-    .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25);transition:background .3s}
+    .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
     h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
     .mut{color:var(--mut);margin:0 0 12px}
     .status{margin-top:8px;color:var(--mut);font-size:14px;white-space:pre-line}
     hr{border:0;border-top:1px solid var(--line);margin:14px 0}
     .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
     .tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px}
-    :root.light .tile{background:#eef1f7}
     .v{font-size:22px;font-weight:800;margin-top:4px}
     .led{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
     .btn{border:0;color:#fff;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:800;min-width:98px;font-size:15px}
     .btn.on{background:#2d6bff;} .btn.off{background:#32405e;} .btn.active{background:#00cc66;} .btn.dim{background:#1b2236;}
-    .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
-    .collapsible{max-height:0;overflow:hidden;transition:max-height .5s ease,padding .3s ease,opacity .3s ease;opacity:0}
-    .collapsible.open{max-height:2000px;padding-top:6px;opacity:1}
-    .tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh}
-    :root.light .tablewrap{background:#eef1f7}
-    table{border-collapse:collapse;width:auto;min-width:100%}
-    thead th{position:sticky;top:0;z-index:2;background:#12203a;white-space:nowrap}
-    :root.light thead th{background:#d6deec}
-    th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:13px;line-height:1.5}
-    th:first-child,td:first-child{text-align:center;padding-left:0;padding-right:4px}
     #raw{white-space:pre-line;font-size:12px;color:var(--mut)}
     #foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--mut);margin-top:4px}
-    #cfg{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 10px}
-    #cfg input, #cfg select{padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:#0e172a;color:var(--txt);}
     .warn{color:#ffb86c}
-    @media (max-width:640px){#cfg{grid-template-columns:1fr} .grid{grid-template-columns:1fr}}
   </style>
+  <!-- MQTT.js (browser bundle) -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h1>ESP32 센서 대시보드 <span id="mode">REST+MQTT</span></h1>
+      <h1>ESP32 센서 대시보드 <small style="font-size:14px;color:#9fb2d7;">고정 설정</small></h1>
       <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
-
-      <!-- NEW: device base + MQTT quick config -->
-      <div id="cfg">
-        <input id="dev" placeholder="디바이스 주소 (예: http://192.168.0.15)">
-        <input id="chip" placeholder="chipId (esp32/<chipId>/...)">
-        <input id="mhost" placeholder="MQTT host (예: test.mosquitto.org)">
-        <input id="mport" type="number" placeholder="MQTT WS/WSS 포트 (예: 8081)">
-        <select id="mproto"><option>wss</option><option>ws</option></select>
-      </div>
-      <div class="status" id="banner">—</div>
+      <div class="status" id="banner">초기화 중…</div>
       <div class="status warn" id="mixwarn" style="display:none"></div>
 
       <div class="grid">
@@ -79,48 +56,41 @@
   </div>
 
 <script>
+/* ===== 하드코딩 고정 설정 — 필요 시 아래 값만 수정 ===== */
+const DEVICE_BASE = "http://192.168.0.15";   // ESP32 웹서버 주소 (예: http://192.168.0.15)
+const CHIP        = "24A3F00ABCDE";           // MQTT 토픽 chipId (esp32/<chipId>/...)
+const MQTT = {
+  host: "test.mosquitto.org",                 // MQTT 브로커 호스트
+  port: 8081,                                  // WebSocket(WSS) 포트
+  proto: "wss",                                // "wss" 또는 "ws"
+  user: "",                                    // 필요 시 계정
+  pass: ""                                     // 필요 시 패스워드
+};
+/* ================================================ */
+
 const $=s=>document.querySelector(s);
-const Q=Object.fromEntries(new URLSearchParams(location.search));
-$('#dev').value=Q.dev||''; $('#chip').value=Q.chip||''; $('#mhost').value=Q.host||'test.mosquitto.org'; $('#mport').value=Q.port||'8081'; $('#mproto').value=Q.proto||'wss';
-
 const fastMs=3000;
-let DEVICE_BASE=$('#dev').value.trim(); // e.g. http://192.168.0.15
-let histBuf=[];
-let mqttClient=null, topics={status:'',readings:'',cmd:''};
-
-function updateTopics(){
-  const chip=$('#chip').value.trim();
-  topics.status=`esp32/${chip}/status`; topics.readings=`esp32/${chip}/readings`; topics.cmd=`esp32/${chip}/cmd/led`;
-}
-updateTopics();
+let mqttClient=null, topics={
+  status:`esp32/${CHIP}/status`,
+  readings:`esp32/${CHIP}/readings`,
+  cmd:`esp32/${CHIP}/cmd/led`
+};
 
 function warnMixedContentIfAny(){
   const isHttps = location.protocol==='https:';
   const usingHttpDevice = DEVICE_BASE.startsWith('http://');
   $('#mixwarn').style.display = (isHttps && usingHttpDevice) ? 'block' : 'none';
   if(isHttps && usingHttpDevice){
-    $('#mixwarn').textContent = '⚠ GitHub Pages(HTTPS)에서 HTTP 디바이스로 REST 요청은 브라우저가 차단합니다. MQTT 사용 또는 페이지를 http로 서비스하세요.';
+    $('#mixwarn').textContent = '⚠ HTTPS 페이지에서 HTTP 장치로 REST 요청은 브라우저가 차단합니다. 이 페이지를 http로 열거나 MQTT만 사용하세요.';
   }
 }
 warnMixedContentIfAny();
 
 async function fetchJson(path){
-  const url = (DEVICE_BASE ? DEVICE_BASE.replace(/\/$/,'') : '') + path;
+  const url = DEVICE_BASE.replace(/\/$/,'') + path;
   const r = await fetch(url, {cache:'no-store'});
   if(!r.ok) throw new Error(r.status+' '+r.statusText);
   return await r.json();
-}
-async function refreshFast(){
-  if(!DEVICE_BASE){ $('#banner').textContent='REST 비활성화 (디바이스 주소 미설정)'; return; }
-  try{
-    const s = await fetchJson('/api/status').catch(async()=>await fetchJson('/api/readings'));
-    applyReadingPacket(s); $('#banner').textContent='REST 연결 OK';
-  }catch(e){ $('#banner').textContent='REST 오류: '+e.message; }
-  $('#ts').textContent = new Date().toLocaleString();
-}
-async function sendLedREST(on){
-  if(!DEVICE_BASE) return;
-  try{ await fetchJson(on?'/api/led?state=on':'/api/led?state=off'); }catch(e){}
 }
 
 function applyReadingPacket(s){
@@ -136,41 +106,42 @@ function applyReadingPacket(s){
   $('#led').textContent='LED: '+(led?'ON':'OFF');
   $('#rssi').textContent='RSSI: '+(s.rssi??'--')+' [dBm]';
   $('#raw').textContent = JSON.stringify(s, null, 2);
-  histBuf.push(s); if(histBuf.length>60) histBuf.shift();
+  $('#ts').textContent = new Date().toLocaleString();
 }
 
-/* MQTT */
+async function refreshFast(){
+  try{
+    const s = await fetchJson('/api/status').catch(async()=>await fetchJson('/api/readings'));
+    applyReadingPacket(s); $('#banner').textContent='REST 연결 OK';
+  }catch(e){ $('#banner').textContent='REST 오류: '+e.message; }
+}
+
+async function sendLedREST(on){
+  try{ await fetchJson(on?'/api/led?state=on':'/api/led?state=off'); }catch(e){}
+}
+
+/* ===== MQTT ===== */
 function mqttConnect(){
-  const host=$('#mhost').value.trim(), port=Number($('#mport').value.trim()), proto=$('#mproto').value;
-  const url=`${proto}://${host}:${port}/mqtt`; updateTopics();
-  if(mqttClient){ try{ mqttClient.end(true); }catch(e){} }
-  mqttClient = mqtt.connect(url, {clientId:'web-'+Math.random().toString(16).slice(2), reconnectPeriod:2000, connectTimeout:10000});
+  const url=`${MQTT.proto}://${MQTT.host}:${MQTT.port}/mqtt`;
+  const opts={ clientId:'web-'+Math.random().toString(16).slice(2), reconnectPeriod:2000, connectTimeout:10000 };
+  if(MQTT.user) opts.username = MQTT.user;
+  if(MQTT.pass) opts.password = MQTT.pass;
+  mqttClient = mqtt.connect(url, opts);
   mqttClient.on('connect', ()=>{ $('#banner').textContent='MQTT 연결 OK'; mqttClient.subscribe([topics.readings, topics.status]); });
   mqttClient.on('error', e=>{ $('#banner').textContent='MQTT 오류: '+(e?.message||e); });
   mqttClient.on('message', (t,p)=>{
     try{ const js=JSON.parse(p.toString()); applyReadingPacket(js); }catch(err){ $('#raw').textContent=p.toString(); }
-    $('#ts').textContent = new Date().toLocaleString();
   });
 }
 function publishLed(on){
   if(mqttClient && mqttClient.connected){ mqttClient.publish(topics.cmd, on?'on':'off'); }
 }
 
+/* ===== 이벤트 바인딩 ===== */
 $('#on').onclick = async()=>{ await sendLedREST(true);  publishLed(true);  };
 $('#off').onclick= async()=>{ await sendLedREST(false); publishLed(false); };
 
-// react to config changes
-['dev','chip','mhost','mport','mproto'].forEach(id=>{
-  $('#'+id).addEventListener('change', ()=>{
-    DEVICE_BASE = $('#dev').value.trim();
-    warnMixedContentIfAny();
-    updateTopics();
-    mqttConnect();
-    refreshFast();
-  });
-});
-
-// initial actions
+/* ===== 시작 ===== */
 mqttConnect();
 refreshFast();
 setInterval(refreshFast, fastMs);
