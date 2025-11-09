@@ -1,7 +1,6 @@
-#pragma once
-// ESP32 Sensor Dashboard Web Page — legends for graphs (sensor name + color)
-// + bottom last line shows RSSI (left) and date/time (right)
-const char INDEX_HTML[] PROGMEM = R"rawliteral(<!doctype html><html lang="ko"><head>
+<!doctype html>
+<html lang="ko">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ESP32 센서 대시보드</title>
@@ -374,4 +373,6 @@ function renderAllCharts(){
   setInterval(tickClock, 1000);
 })();
 </script>
-</body></html>)rawliteral";
+</body>
+</html>
+
