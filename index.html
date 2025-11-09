@@ -1,218 +1,254 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ESP32 센서 대시보드</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ESP32 Remote Dashboard (MQTT over WebSocket)</title>
   <style>
-    :root{
-      --bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;
-      --btn-bg:#1b2b4a;--btn-border:#2c3e63;
+    :root {
+      --bg:#0b1220; --fg:#e6eefc; --muted:#9fb3d9; --card:#111a2e; --acc:#4da3ff;
+      --ok:#12b981; --warn:#f59e0b; --bad:#ef4444; --border:#26324d;
     }
-    :root.light{
-      --bg:#f5f7fa;--card:#ffffff;--txt:#0b1020;--mut:#5a6b8a;--line:#ccd4e0;
-      --btn-bg:#e4e8ef;--btn-border:#b0bacb;
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Apple SD Gothic Neo, Noto Sans KR, "맑은 고딕", Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+      background: radial-gradient(1000px 600px at 10% -10%, #0e1830 0%, #0b1220 60%);
+      color: var(--fg);
     }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.6 Pretendard,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Apple SD Gothic Neo,Malgun Gothic,NanumBarunGothic,Helvetica Neue,Arial,system-ui,Noto Sans KR,sans-serif;transition:background .3s,color .3s}
-    .wrap{max-width:900px;margin:20px auto;padding:0 12px}
-    .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    h1{margin:0 0 8px;font-size:28px}
-    .mut{color:var(--mut);margin:2px 0 14px}
-    hr{border:0;border-top:1px solid var(--line);margin:16px 0}
-    .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
-    .tile{background:#0f1628;border:1px solid #1c2a46;border-radius:12px;padding:12px}
-    .tile>div:first-child{font-size:13px;color:var(--mut);margin-bottom:6px}
-    .v{font-size:24px;font-weight:700}
-    .btn{border:1px solid var(--btn-border);background:var(--btn-bg);color:var(--txt);padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:600}
-    .btn:active{transform:translateY(1px)}
-    .btn.on{background:#2c4a7a}
-    .btn.off{background:#2a3148}
-    .toggle-row{display:flex;gap:10px;margin:12px 0;align-items:center;flex-wrap:wrap}
-    .theme-toggle{margin-left:auto;cursor:pointer;font-size:20px}
-    .collapsible{max-height:0;overflow:hidden;transition:max-height .35s ease}
-    .collapsible.open{max-height:1200px}
-    .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px}
-    table{border-collapse:collapse;width:100%}
-    th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:center}
-    th{position:sticky;top:0;background:rgba(0,0,0,.15);backdrop-filter:blur(6px)}
-    .canvas-wrap{display:grid;gap:14px}
-    canvas{width:100%;height:220px;background:#0f1628;border:1px solid #1c2a46;border-radius:12px}
-    .legend{display:flex;gap:10px;font-size:12px;color:var(--mut);margin:6px 2px;flex-wrap:wrap}
-    @media (max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+    h1 { font-size: 1.4rem; margin: 0 0 16px; letter-spacing: .3px; }
+    .wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 16px; }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .row-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .row-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    label { font-size: .85rem; color: var(--muted); }
+    input, select, button {
+      width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border);
+      background: #0e172a; color: var(--fg); outline: none;
+    }
+    input:focus, select:focus { border-color: var(--acc); box-shadow: 0 0 0 3px rgba(77,163,255,.15); }
+    button {
+      cursor: pointer; font-weight: 600; transition: transform .03s ease, background .2s ease;
+      background: linear-gradient(180deg, #1a2a4a, #0f1b34);
+    }
+    button:hover { transform: translateY(-1px); }
+    .btn-primary { background: linear-gradient(180deg, #2f7aff, #1d65e8); border-color: #2f7aff; }
+    .btn-ok { background: linear-gradient(180deg, #15c48f, #11a97b); border-color: #11a97b; }
+    .btn-warn { background: linear-gradient(180deg, #f5a524, #e08f10); border-color: #e08f10; }
+    .btn-bad { background: linear-gradient(180deg, #ef4444, #d83434); border-color: #d83434; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px;
+             font-size: .8rem; border: 1px solid var(--border); background: #0d172b; }
+    .kvs { display: grid; gap: 8px; }
+    .kv {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center;
+      background: #0b152a; border: 1px dashed var(--border); border-radius: 12px; padding: 10px 12px;
+    }
+    .kv b { font-size: .95rem; color: #d4e3ff; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    .grid-sensors { display: grid; gap: 10px; grid-template-columns: repeat(5, 1fr); }
+    .sensor { background: #0c1730; border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
+    .sensor .v { font-size: 1.4rem; font-weight: 700; margin-top: 6px; }
+    .muted { color: var(--muted); font-size: .85rem; }
+    .footer { text-align: center; color: var(--muted); font-size: .8rem; margin-top: 10px; }
+    .sp { height: 6px; }
+    @media (max-width: 920px){
+      .row, .row-3, .row-4, .grid-sensors { grid-template-columns: 1fr; }
+    }
   </style>
+  <!-- MQTT.js (browser bundle CDN) -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
-<div class="wrap">
-  <div class="card">
-    <h1>ESP32 센서 대시보드 <span id="themeToggle" class="theme-toggle">🌙</span></h1>
-    <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
+  <div class="wrap">
+    <h1>ESP32 Remote Dashboard <span class="badge" id="badge">DISCONNECTED</span></h1>
 
-    <div class="grid">
-      <div class="tile"><div>AHT25 온도</div><div id="aht_t" class="v">--.- °C</div></div>
-      <div class="tile"><div>AHT25 습도</div><div id="aht_h" class="v">-- %</div></div>
-      <div class="tile"><div>SCD42 온도</div><div id="scd_t" class="v">--.- °C</div></div>
-      <div class="tile"><div>SCD42 습도</div><div id="scd_h" class="v">-- %</div></div>
-      <div class="tile"><div>CO₂ 공기</div><div id="scd_c" class="v">---- ppm</div></div>
-    </div>
-
-    <div class="toggle-row">
-      <button class="btn on" id="on">LED ON</button>
-      <button class="btn off" id="off">LED OFF</button>
-      <span class="mut">LED: <span id="led">-</span></span>
-    </div>
-
-    <hr>
-    <div class="toggle-row">
-      <button class="btn" id="toggleTable">📋 테이블 보기</button>
-      <button class="btn" id="toggleGraph">📊 그래프 보기</button>
-    </div>
-
-    <div id="tableSection" class="collapsible">
-      <div class="tablewrap">
-        <table>
-          <thead>
-            <tr><th>시간</th><th>AHT25 온도</th><th>AHT25 습도</th><th>SCD42 온도</th><th>SCD42 습도</th><th>CO₂</th><th>LED</th></tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
+    <div class="card">
+      <div class="row-4">
+        <div>
+          <label>Broker Host</label>
+          <input id="host" placeholder="e.g. test.mosquitto.org" value="test.mosquitto.org"/>
+        </div>
+        <div>
+          <label>Port</label>
+          <input id="port" type="number" placeholder="e.g. 8081 for wss, 8080 for ws, 1883 not for WS" value="8081"/>
+        </div>
+        <div>
+          <label>Protocol</label>
+          <select id="proto">
+            <option value="wss" selected>wss (TLS)</option>
+            <option value="ws">ws (non-TLS)</option>
+          </select>
+        </div>
+        <div>
+          <label>Client ID</label>
+          <input id="cid" placeholder="auto" />
+        </div>
+      </div>
+      <div class="sp"></div>
+      <div class="row-4">
+        <div>
+          <label>Username (optional)</label>
+          <input id="user" placeholder="username (if needed)"/>
+        </div>
+        <div>
+          <label>Password (optional)</label>
+          <input id="pass" type="password" placeholder="password (if needed)"/>
+        </div>
+        <div>
+          <label>Device chipId</label>
+          <input id="chip" class="mono" placeholder="e.g. 24A3F00ABCDE" />
+        </div>
+        <div style="display:flex; gap:8px; align-items:flex-end;">
+          <button class="btn-primary" id="btnConnect">Connect</button>
+          <button class="btn-bad" id="btnDisconnect">Disconnect</button>
+        </div>
+      </div>
+      <div class="sp"></div>
+      <div class="row">
+        <div class="kvs">
+          <div class="kv"><b>Status topic</b><div class="mono" id="tStatus">-</div></div>
+          <div class="kv"><b>Readings topic</b><div class="mono" id="tRead">-</div></div>
+          <div class="kv"><b>LED cmd topic</b><div class="mono" id="tCmd">-</div></div>
+        </div>
+        <div class="kvs">
+          <div class="kv"><b>Connection</b><div id="connInfo" class="mono">-</div></div>
+          <div class="kv"><b>Last status</b><div id="lastStatus" class="mono">-</div></div>
+          <div class="kv"><b>Last readings</b><div id="lastReadings" class="mono">-</div></div>
+        </div>
       </div>
     </div>
 
-    <div id="graphSection" class="collapsible">
-      <div class="legend">
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#7ab8ff;margin-right:4px"></span>AHT25 온도</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff9a7a;margin-right:4px"></span>SCD42 온도</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#7ae0ff;margin-right:4px"></span>AHT25 습도</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ffd07a;margin-right:4px"></span>SCD42 습도</span>
-        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#8aff7a;margin-right:4px"></span>CO₂</span>
-      </div>
-      <div class="canvas-wrap">
-        <canvas id="chTemp"></canvas>
-        <canvas id="chHum"></canvas>
-        <canvas id="chCO2"></canvas>
+    <div class="card">
+      <div class="grid-sensors">
+        <div class="sensor"><div class="muted">AHT Temp (°C)</div><div class="v" id="aht_t">-</div></div>
+        <div class="sensor"><div class="muted">AHT RH (%)</div><div class="v" id="aht_h">-</div></div>
+        <div class="sensor"><div class="muted">SCD Temp (°C)</div><div class="v" id="scd_t">-</div></div>
+        <div class="sensor"><div class="muted">SCD RH (%)</div><div class="v" id="scd_h">-</div></div>
+        <div class="sensor"><div class="muted">CO₂ (ppm)</div><div class="v" id="co2">-</div></div>
       </div>
     </div>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <label>LED</label>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-ok" id="btnOn">ON</button>
+            <button class="btn-warn" id="btnOff">OFF</button>
+          </div>
+        </div>
+        <div>
+          <label>Raw incoming JSON</label>
+          <textarea id="raw" rows="6" style="width:100%; background:#0b152a; color:#d8e5ff; border:1px solid var(--border); border-radius:12px; padding:10px;"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">GitHub Pages에 올려 HTTPS로 접속 시, 브로커도 <b>WSS</b> 포트를 사용하세요.</div>
   </div>
-</div>
 
-<script>
-/* ===== ESP32 주소 고정 ===== */
-const BASE = "http://192.168.31.204"; // ← ESP32 IP 고정
-function fullUrl(path){ return BASE + path; }
+  <script>
+    const $ = (id)=>document.getElementById(id);
+    let client = null;
+    let topics = { status:"", readings:"", cmd:"" };
 
-/* ===== 기본 설정 ===== */
-const $=s=>document.querySelector(s);
-const fastMs=3000, maxRows=60;
+    function setBadge(ok){
+      const el = $("badge");
+      if(ok){ el.textContent = "CONNECTED"; el.style.background = "#0d2b18"; el.style.borderColor = "#114826"; }
+      else { el.textContent = "DISCONNECTED"; el.style.background = "#2b1010"; el.style.borderColor = "#4d2631"; }
+    }
+    setBadge(false);
 
-/* ===== 테마 ===== */
-const themeToggle=$('#themeToggle');
-(function(){
-  const k='themeMode';
-  const apply=m=>{document.documentElement.className=(m==='light'?'light':'');themeToggle.textContent=(m==='light'?'🌞':'🌙');};
-  const cur=localStorage.getItem(k)||'';apply(cur);
-  themeToggle.onclick=()=>{const m=document.documentElement.classList.contains('light')?'':'light';localStorage.setItem(k,m);apply(m);};
-})();
+    function setTopics(){
+      const chip = $("chip").value.trim();
+      topics.status = `esp32/${chip}/status`;
+      topics.readings = `esp32/${chip}/readings`;
+      topics.cmd = `esp32/${chip}/cmd/led`;
+      $("tStatus").textContent = topics.status;
+      $("tRead").textContent = topics.readings;
+      $("tCmd").textContent = topics.cmd;
+    }
+    $("chip").addEventListener("input", setTopics);
+    setTopics();
 
-/* ===== 데이터 ===== */
-let histBuf=[];
-async function getJSON(u){
-  const r=await fetch(fullUrl(u),{cache:"no-store"});
-  if(!r.ok) throw new Error(r.status);
-  return r.json();
-}
+    function connect(){
+      if(client){ try{ client.end(true); }catch(e){} client=null; }
+      const host = $("host").value.trim();
+      const port = Number($("port").value.trim());
+      const proto = $("proto").value;
+      const url = `${proto}://${host}:${port}/mqtt`;
+      const cid = $("cid").value.trim() || `web-${Math.random().toString(16).slice(2)}`;
+      const user = $("user").value.trim();
+      const pass = $("pass").value;
 
-/* ===== 상태 ===== */
-async function refreshFast(){
-  try{
-    const s=await getJSON("/api/status");
-    $('#aht_t').textContent=(Number.isFinite(s.aht_t)?s.aht_t.toFixed(1):'--.-')+' °C';
-    $('#aht_h').textContent=(Number.isFinite(s.aht_h)?s.aht_h.toFixed(0):'--')+' %';
-    $('#scd_t').textContent=(Number.isFinite(s.scd_t)?s.scd_t.toFixed(1):'--.-')+' °C';
-    $('#scd_h').textContent=(Number.isFinite(s.scd_h)?s.scd_h.toFixed(0):'--')+' %';
-    $('#scd_c').textContent=(Number.isFinite(s.co2)?s.co2.toFixed(0):'----')+' ppm';
-    $('#led').textContent=s.led?'ON':'OFF';
-  }catch(e){console.warn('상태 갱신 실패',e);}
-}
+      setTopics();
 
-/* ===== 로그 ===== */
-function normalize(o){return{
-  aht_t:Number(o.aht_t)||NaN,aht_h:Number(o.aht_h)||NaN,
-  scd_t:Number(o.scd_t)||NaN,scd_h:Number(o.scd_h)||NaN,
-  co2:Number(o.co2)||NaN,led:o.led?1:0,ts:Number(o.timestamp)||0
-};}
+      const opts = {
+        clientId: cid,
+        clean: true,
+        reconnectPeriod: 2000,
+        connectTimeout: 10_000,
+      };
+      if(user) opts.username = user;
+      if(pass) opts.password = pass;
 
-function renderTable(){
-  const tb=$('#tbody');tb.innerHTML='';
-  const rows=Math.min(maxRows,histBuf.length);
-  for(let i=histBuf.length-rows;i<histBuf.length;i++){
-    const r=histBuf[i];const tr=document.createElement('tr');
-    const td=t=>{const d=document.createElement('td');d.textContent=t;tr.appendChild(d);};
-    td(r.ts?new Date(r.ts*1000).toLocaleString():'--');
-    td(r.aht_t.toFixed(1)+' °C');td(r.aht_h.toFixed(0)+' %');
-    td(r.scd_t.toFixed(1)+' °C');td(r.scd_h.toFixed(0)+' %');
-    td(r.co2.toFixed(0)+' ppm');td(r.led?'ON':'OFF');
-    tb.appendChild(tr);
-  }
-}
+      $("connInfo").textContent = `${url}  as ${cid}`;
 
-/* ===== 그래프 ===== */
-function drawChart(canvas,series){
-  if(!canvas)return;
-  const ctx=canvas.getContext('2d'),W=canvas.clientWidth,H=canvas.clientHeight;
-  const DPR=window.devicePixelRatio||1;canvas.width=W*DPR;canvas.height=H*DPR;ctx.scale(DPR,DPR);
-  ctx.clearRect(0,0,W,H);
-  ctx.globalAlpha=.8;ctx.lineWidth=1;ctx.strokeStyle='#314469';
-  for(let y=H-30;y>20;y-=40){ctx.beginPath();ctx.moveTo(40,y);ctx.lineTo(W-10,y);ctx.stroke();}
-  ctx.globalAlpha=1;
-  const n=histBuf.length;if(!n)return;
-  function range(a){let mn=+Infinity,mx=-Infinity;for(const v of a){if(Number.isFinite(v)){mn=Math.min(mn,v);mx=Math.max(mx,v);}}return[mn,mx];}
-  const ranges=series.map(s=>range(s.data));
-  let mn=Math.min(...ranges.map(r=>r[0])),mx=Math.max(...ranges.map(r=>r[1]));
-  if(!Number.isFinite(mn)||!Number.isFinite(mx)){mn=0;mx=1;}if(mx===mn){mx=mn+1;}
-  const pad=0.05*(mx-mn);mn-=pad;mx+=pad;
-  const yAt=v=>H-30-((v-mn)/(mx-mn))*(H-60),xAt=i=>40+(W-60)*(i/(n-1||1));
-  const colors=['#7ab8ff','#ff9a7a','#7ae0ff','#ffd07a','#8aff7a'];
-  series.forEach((s,si)=>{ctx.beginPath();ctx.lineWidth=2;ctx.strokeStyle=colors[si%colors.length];
-    let moved=false;for(let i=0;i<n;i++){const v=s.data[i];const x=xAt(i);
-      if(Number.isFinite(v)){const y=yAt(v);if(!moved){ctx.moveTo(x,y);moved=true;}else ctx.lineTo(x,y);}else moved=false;}
-    ctx.stroke();});
-}
+      client = mqtt.connect(url, opts);
+      client.on("connect", () => {
+        setBadge(true);
+        client.subscribe([topics.status, topics.readings], (err) => {
+          if(err){ console.warn("subscribe error", err); }
+        });
+      });
+      client.on("reconnect", ()=> { setBadge(false); });
+      client.on("close", ()=> { setBadge(false); });
+      client.on("error", (e)=> { console.error(e); $("connInfo").textContent = `ERROR: ${e.message || e}`; });
 
-function renderAllCharts(){
-  if(!$('#graphSection').classList.contains('open'))return;
-  const aht_t=histBuf.map(r=>r.aht_t),scd_t=histBuf.map(r=>r.scd_t);
-  const aht_h=histBuf.map(r=>r.aht_h),scd_h=histBuf.map(r=>r.scd_h);
-  const co2=histBuf.map(r=>r.co2);
-  drawChart($('#chTemp'),[{data:aht_t},{data:scd_t}]);
-  drawChart($('#chHum'),[{data:aht_h},{data:scd_h}]);
-  drawChart($('#chCO2'),[{data:co2}]);
-}
+      client.on("message", (topic, payload)=>{
+        const text = payload.toString();
+        $("raw").value = text;
+        try {
+          const js = JSON.parse(text);
+          if(topic === topics.readings){
+            $("lastReadings").textContent = new Date().toLocaleString();
+            if("aht_t" in js) $("aht_t").textContent = js.aht_t?.toFixed?.(2) ?? js.aht_t;
+            if("aht_h" in js) $("aht_h").textContent = js.aht_h?.toFixed?.(2) ?? js.aht_h;
+            if("scd_t" in js) $("scd_t").textContent = js.scd_t?.toFixed?.(2) ?? js.scd_t;
+            if("scd_h" in js) $("scd_h").textContent = js.scd_h?.toFixed?.(2) ?? js.scd_h;
+            if("co2"   in js) $("co2").textContent   = js.co2?.toFixed?.(1) ?? js.co2;
+          } else if(topic === topics.status){
+            $("lastStatus").textContent = text;
+          }
+        } catch(e){
+          // non-JSON status messages are fine
+          if(topic === topics.status){
+            $("lastStatus").textContent = text;
+          }
+        }
+      });
+    }
 
-/* ===== 데이터 로드 ===== */
-async function loadHistory(){
-  try{
-    const arr=await getJSON("/api/history?limit=60");
-    histBuf=arr.map(normalize);
-    renderTable();renderAllCharts();
-  }catch(e){console.warn('히스토리 실패',e);}
-}
+    function disconnect(){
+      if(client){ client.end(true); client=null; }
+      setBadge(false);
+    }
 
-/* ===== 버튼 ===== */
-function setOpen(el,on){el.classList[on?'add':'remove']('open');}
-$('#toggleTable').onclick=()=>{const el=$('#tableSection');setOpen(el,!el.classList.contains('open'));renderTable();};
-$('#toggleGraph').onclick=()=>{const el=$('#graphSection');setOpen(el,!el.classList.contains('open'));renderAllCharts();};
+    function publishLed(on){
+      if(!client || !client.connected){ alert("Not connected"); return; }
+      client.publish(topics.cmd, on ? "on" : "off", { qos: 0, retain: false });
+    }
 
-$('#on').onclick=async()=>{await fetch(fullUrl("/api/led?state=on"));refreshFast();};
-$('#off').onclick=async()=>{await fetch(fullUrl("/api/led?state=off"));refreshFast();};
-
-/* ===== 시작 ===== */
-(async()=>{
-  await loadHistory();
-  await refreshFast();
-  setInterval(refreshFast,fastMs);
-  setInterval(loadHistory,60000);
-})();
-</script>
+    $("btnConnect").addEventListener("click", connect);
+    $("btnDisconnect").addEventListener("click", disconnect);
+    $("btnOn").addEventListener("click", ()=>publishLed(true));
+    $("btnOff").addEventListener("click", ()=>publishLed(false));
+  </script>
 </body>
 </html>
