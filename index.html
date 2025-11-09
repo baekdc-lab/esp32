@@ -14,8 +14,6 @@ body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Sego
 h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
 .mut{color:var(--mut);margin:0 0 8px}
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}
-
-/* Theme toggle */
 .theme-toggle{cursor:pointer;font-size:22px;user-select:none}
 
 /* KPI */
@@ -62,13 +60,13 @@ th:nth-child(7){width:52px}
 /* 하단 */
 #foot{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--mut);margin-top:4px}
 #foot>span{white-space:nowrap}
+#mini{white-space:pre-line;color:var(--mut);font-size:13px;margin-top:8px}
 </style>
 </head>
 <body>
 <div class="wrap"><div class="card">
   <h1>ESP32 센서 대시보드 <span class="theme-toggle" id="themeToggle">🌙</span></h1>
   <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
-  <!-- 3번째 줄 문구 고정 표시 -->
   <p class="mut">MQTT 연결 OK</p>
 
   <div class="grid">
@@ -114,6 +112,8 @@ th:nth-child(7){width:52px}
   </div>
 
   <hr>
+  <!-- 왼쪽 아래 3줄 요약 -->
+  <div id="mini">AHT25: --.- °C | -- % | LED=--\nSCD42: --.- °C | -- % | ---- ppm | LED=--\nRSSI: -- [dBm]</div>
   <div id="foot"><span id="rssi">RSSI: -- [dBm]</span><span id="ts">—</span></div>
 </div></div>
 
@@ -126,21 +126,21 @@ function applyTheme(t){document.documentElement.classList.toggle('light',t==='li
 applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
 
-/* 네트워크 기본 설정(표시는 제거해도 기능 유지) */
+/* 네트워크 기본 */
 const LS_LAST_STATUS='esp32_last_status', LS_BASE='base';
 let BASE=(localStorage.getItem(LS_BASE)||'').replace(/\/$/,'');
 const CANDS=[]; if(BASE) CANDS.push(BASE); CANDS.push('http://esp32.local','http://192.168.31.204');
 async function tryStatus(b){try{const r=await fetch(b+'/api/status',{cache:'no-store'});return r.ok}catch(_){return false}}
 async function discoverBase(){for(const b of CANDS){if(await tryStatus(b)){BASE=b;localStorage.setItem(LS_BASE,b);return true}}return false}
 
-/* 엔드포인트 목록 */
+/* API 경로 후보 */
 const EP={status:['/api/status','/status','/readings','/get','/api/readings'],history60:['/api/history?limit=60','/history?limit=60','/api/history','/history','/logs'],history1:['/api/history?limit=1','/history?limit=1','/api/history','/history'],ledOn:['/api/led?state=on','/led/on','/api/led/on','/set?led=1'],ledOff:['/api/led?state=off','/led/off','/api/led/off','/set?led=0']};
 async function fetchFirstJson(paths,opt={}){for(const p of paths){const u=(/^https?:\/\//.test(p)?p:(BASE+p));try{const r=await fetch(u,{...opt,cache:'no-store'});if(!r.ok)continue;return await r.json()}catch(_){}}throw new Error('모든 경로 실패')}
 
-/* 캐시 우선 적용(깜빡임 방지) */
+/* 캐시 우선 반영 */
 (function(){const raw=localStorage.getItem(LS_LAST_STATUS);if(!raw)return;try{applyStatus(JSON.parse(raw),true)}catch(_){}})();
 
-/* UI 동기화 */
+/* 적용 & 하단 3줄 업데이트 */
 function syncButtons(on){const bon=$('#on'),boff=$('#off');bon.classList.remove('active','dim');boff.classList.remove('active','dim'); if(on){bon.classList.add('active');boff.classList.add('dim');}else{boff.classList.add('active');bon.classList.add('dim');}}
 function applyStatus(s,fromCache=false){
   const aT=Number(s.aht_t), aH=Number(s.aht_h), sT=Number(s.scd_t), sH=Number(s.scd_h), co=Number(s.co2);
@@ -150,15 +150,25 @@ function applyStatus(s,fromCache=false){
   if(!Number.isNaN(sT)) $('#scd_t').textContent=sT.toFixed(1)+' °C';
   if(!Number.isNaN(sH)) $('#scd_h').textContent=Math.round(sH)+' %';
   if(!Number.isNaN(co)&&co>0) $('#scd_c').textContent=co+' ppm';
-  $('#led').textContent='LED: '+(led?'ON':'OFF'); syncButtons(led);
-  if(typeof s.rssi!=='undefined') $('#rssi').textContent=`RSSI: ${s.rssi} [dBm]`;
+
+  $('#led').textContent='LED: '+(led?'ON':'OFF');
+  syncButtons(led);
+
+  const rssiText = (typeof s.rssi!=='undefined') ? `RSSI: ${s.rssi} [dBm]` : 'RSSI: -- [dBm]';
+  $('#rssi').textContent = rssiText;
+
+  // 🔻 왼쪽 아래 3줄 요약 업데이트
+  const line1 = `AHT25: ${Number.isNaN(aT)?'--.-':aT.toFixed(1)} °C | ${Number.isNaN(aH)?'--':Math.round(aH)} % | LED=${led?'ON':'OFF'}`;
+  const line2 = `SCD42: ${Number.isNaN(sT)?'--.-':sT.toFixed(1)} °C | ${Number.isNaN(sH)?'--':Math.round(sH)} % | ${Number.isNaN(co)?'----':co} ppm | LED=${led?'ON':'OFF'}`;
+  $('#mini').textContent = `${line1}\n${line2}\n${rssiText}`;
+
   if(!fromCache) localStorage.setItem(LS_LAST_STATUS, JSON.stringify(s));
   $('#ts').textContent=fmtNow();
 }
 
-/* 상태 폴링 */
+/* 폴링 */
 const fastMs=3000, maxRows=60;
-async function refreshFast(){ try{const s=await fetchFirstJson(EP.status);applyStatus(s,false);}catch(_){/* 조용히 무시 */} }
+async function refreshFast(){ try{const s=await fetchFirstJson(EP.status);applyStatus(s,false);}catch(_){/* 무소음 실패 */} }
 const fmtNow=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;};
 
 /* 테이블/그래프 토글 */
@@ -166,11 +176,11 @@ const secTable=$('#tableSection'), secGraph=$('#graphSection');
 $('#toggleTable').onclick=()=>{const open=secTable.classList.toggle('open');$('#toggleTable').textContent=open?'📋 테이블 숨기기':'📋 테이블 보기'; if(open && !$('#logtbl').children.length) loadHistory60();};
 $('#toggleGraph').onclick=()=>{const open=secGraph.classList.toggle('open');$('#toggleGraph').textContent=open?'📊 그래프 숨기기':'📊 그래프 보기'; if(open) renderAllCharts();};
 
-/* 히스토리 */
+/* 테이블/히스토리 */
 function addRowTop(o,ts){const tb=$('#logtbl');const d=ts?new Date(ts):new Date();const hh=String(d.getHours()).padStart(2,'0'),mm=String(d.getMinutes()).padStart(2,'0');const tr=document.createElement('tr');tr.innerHTML=`<td>${hh}:${mm}</td><td>${Number(o.aht_t).toFixed(1)}</td><td>${Math.round(Number(o.aht_h))}</td><td>${Number(o.scd_t).toFixed(1)}</td><td>${Math.round(Number(o.scd_h))}</td><td>${o.co2}</td><td>${o.led?'ON':'OFF'}</td>`; if(tb.firstChild) tb.insertBefore(tr,tb.firstChild); else tb.appendChild(tr); while(tb.rows.length>maxRows) tb.deleteRow(tb.rows.length-1);}
 async function loadHistory60(){try{const list=await fetchFirstJson(EP.history60);$('#logtbl').innerHTML='';const now=Date.now();for(const it of list){const ts=it.timestamp?new Date(it.timestamp):new Date(now-(it.age||0)*60000);addRowTop(it,ts);}}catch(_){ }}
 
-/* 간단 차트(점선 없음) */
+/* 간단 차트 */
 let histBuf=[]; const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(c){const r=c.getBoundingClientRect();const w=Math.max(1,r.width),h=Math.max(1,r.height);c.width=Math.floor(w*dpr());c.height=Math.floor(h*dpr());const ctx=c.getContext('2d');ctx.setTransform(dpr(),0,0,dpr(),0,0);return ctx;}
 function drawChart(c,series){const ctx=prepCanvas(c);const W=c.clientWidth,H=c.clientHeight;const padL=38,padR=10,padT=10,padB=26,plotW=W-padL-padR,plotH=H-padT-padB;const light=document.documentElement.classList.contains('light');ctx.clearRect(0,0,W,H);ctx.fillStyle=light?'#eef1f7':'#0f1526';ctx.fillRect(0,0,W,H);ctx.strokeStyle=light?'#ccd4e0':'#22314f';ctx.beginPath();for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}ctx.stroke();ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';ctx.textAlign='center';ctx.textBaseline='top';for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+6);}const vals=[];series.forEach(a=>a.forEach(v=>{if(Number.isFinite(v))vals.push(v);}));let vmin=Math.min(...(vals.length?vals:[0])),vmax=Math.max(...(vals.length?vals:[1]));if(vmax===vmin){vmax=vmin+1;}const pad=(vmax-vmin)*0.1;vmin-=pad;vmax+=pad;ctx.textAlign='right';ctx.textBaseline='middle';for(let g=0;g<=4;g++){const y=padT+plotH*g/4,val=vmax-(vmax-vmin)*g/4;ctx.fillText(val.toFixed((vmax-vmin)<10?1:0),padL-6,y);}const xAt=i=>padL+plotW*(i/59),yAt=v=>padT+((vmax-v)/(vmax-vmin))*plotH;const colors=['#7aa0ff','#ff9a7a'];series.forEach((arr,idx)=>{ctx.beginPath();ctx.lineWidth=2;ctx.strokeStyle=colors[idx%colors.length];let moved=false;const N=arr.length;for(let i=0;i<60;i++){const j=i-(60-N);const v=(j>=0&&j<N)?arr[j]:NaN;const x=xAt(i);if(Number.isFinite(v)){const y=yAt(v);if(!moved){ctx.moveTo(x,y);moved=true;}else ctx.lineTo(x,y);}else moved=false;}ctx.stroke();});}
