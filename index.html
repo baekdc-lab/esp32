@@ -13,7 +13,7 @@ body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Sego
 .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
 .mut{color:var(--mut);margin:0 0 8px}
-.mut.small{font-size:14px} /* MQTT 문구만 작게 */
+.mut.small{font-size:14px}
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 
 /* Theme toggle */
@@ -67,21 +67,21 @@ th:nth-child(7){width:52px}
 .swatch.blue{background:#7aa0ff}
 .swatch.orange{background:#ff9a7a}
 
-/* 하단 (#2 유형) */
+/* 하단 (#2 유형) : 좌측 3줄 + 우측 시간 */
 .bottomRow{
   display:flex;
   justify-content:space-between;
-  align-items:flex-end;  /* 좌측 3줄과 우측 시간의 하단 맞춤 */
+  align-items:flex-end;
   gap:12px;
   color:var(--mut);
 }
 #mini{
   white-space:pre-line;
-  font-size:13px;
+  font-size:12px;   /* ↓ 한 단계 줄임 (기존 13px) */
   margin:0;
 }
 .timeText{
-  font-size:13px;
+  font-size:12px;   /* ↓ 한 단계 줄임 (기존 13px) */
   white-space:nowrap;
   margin:0 2px 0 0;
 }
@@ -201,13 +201,13 @@ const EP={
 };
 async function fetchFirstJson(paths,opt={}){
   for(const p of paths){
-    const u=(/^https?:\/\//.test(p)?p:(BASE+p));
+    const u=(/^(?:https?:)?\/\//.test(p)?p:(BASE+p));
     try{const r=await fetch(u,{...opt,cache:'no-store'});if(!r.ok)continue;return await r.json();}catch(_){}
   }
   throw new Error('모든 경로 실패');
 }
 
-/* 캐시 우선 반영 (깜빡임 최소화) */
+/* 캐시 우선 반영 */
 (function(){
   const raw=localStorage.getItem(LS_LAST_STATUS);
   if(!raw) return;
@@ -287,7 +287,7 @@ async function loadHistory60(){
   }catch(_){}
 }
 
-/* 간단 캔버스 차트 (점선 없음) */
+/* 캔버스 차트 */
 let histBuf=[]; const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(c){
   const r=c.getBoundingClientRect(); const w=Math.max(1,r.width), h=Math.max(1,r.height);
@@ -309,7 +309,7 @@ function drawChart(c,series){
   ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';
   ctx.textAlign='center'; ctx.textBaseline='top';
   for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+6);}
-  const vals=[]; series.forEach(a=>a.forEach(v=>{if(Number.isFinite(v))vals.push(v);})); 
+  const vals=[]; series.forEach(a=>a.forEach(v=>{if(Number.isFinite(v))vals.push(v);}));
   let vmin=Math.min(...(vals.length?vals:[0])), vmax=Math.max(...(vals.length?vals:[1])); if(vmax===vmin){vmax=vmin+1;}
   const pad=(vmax-vmin)*0.1; vmin-=pad; vmax+=pad;
   ctx.textAlign='right'; ctx.textBaseline='middle';
