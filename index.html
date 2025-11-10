@@ -13,7 +13,7 @@ body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Sego
 .card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
 .mut{color:var(--mut);margin:0 0 8px}
-.mut.small{font-size:14px} /* MQTT 문구는 한 단계 작게 */
+.mut.small{font-size:14px}
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 
 /* Theme toggle */
@@ -35,7 +35,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
 .toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
 
-/* 접힘 */
+/* 접힘 섹션 */
 .collapsible{max-height:0;overflow:hidden;transition:max-height .4s ease,opacity .3s ease;opacity:0}
 .collapsible.open{max-height:2000px;opacity:1}
 
@@ -68,12 +68,11 @@ th:nth-child(7){width:52px}
 .swatch.orange{background:#ff9a7a}
 
 /* 하단 한 줄(요약 + 시간) */
-.bottomRow{
-  display:flex;justify-content:space-between;align-items:flex-end;gap:12px;color:var(--mut)}
+.bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;color:var(--mut)}
 #mini{white-space:pre-line;font-size:12px;margin:0}
 .timeText{font-size:12px;white-space:nowrap;margin:0 2px 0 0}
 
-/* 혹시 남아있던 구 레이아웃 숨김 */
+/* 예전 #foot 숨김 */
 #foot{display:none;}
 </style>
 </head>
@@ -148,7 +147,6 @@ th:nth-child(7){width:52px}
   </div>
 
   <hr>
-  <!-- 하단 한 줄: 좌측 요약 + 우측 시간 (이것만 남기고, 아래 중복 블록은 제거됨) -->
   <div class="bottomRow">
     <div id="mini">AHT25: --.- °C | -- %<br>SCD42: --.- °C | -- % | ---- ppm<br>RSSI: -- [dBm]</div>
     <div id="ts" class="timeText">—</div>
@@ -158,7 +156,7 @@ th:nth-child(7){width:52px}
 <script>
 const $=s=>document.querySelector(s);
 
-/* 테마 */
+/* ===== 테마 ===== */
 const themeToggle=$('#themeToggle');
 function applyTheme(t){
   document.documentElement.classList.toggle('light',t==='light');
@@ -171,14 +169,14 @@ themeToggle.onclick=()=>{
   applyTheme(t); localStorage.setItem('theme',t);
 };
 
-/* 네트워크 */
+/* ===== 네트워크 기본 ===== */
 const LS_LAST_STATUS='esp32_last_status', LS_BASE='base';
 let BASE=(localStorage.getItem(LS_BASE)||'').replace(/\/$/,'');
 const CANDS=[]; if(BASE) CANDS.push(BASE); CANDS.push('http://esp32.local','http://192.168.31.204');
 async function tryStatus(b){try{const r=await fetch(b+'/api/status',{cache:'no-store'});return r.ok}catch(_){return false}}
 async function discoverBase(){for(const b of CANDS){if(await tryStatus(b)){BASE=b;localStorage.setItem(LS_BASE,b);return true}}return false}
 
-/* 엔드포인트 */
+/* ===== 엔드포인트 후보 ===== */
 const EP={
   status   : ['/api/status','/status','/readings','/get','/api/readings'],
   history60: ['/api/history?limit=60','/history?limit=60','/api/history','/history','/logs'],
@@ -193,14 +191,26 @@ async function fetchFirstJson(paths,opt={}){
   throw new Error('모든 경로 실패');
 }
 
-/* 캐시 우선 적용 */
+/* ===== 유틸 ===== */
+function toBool(v){
+  if(typeof v==='boolean') return v;
+  if(typeof v==='number') return v!==0;
+  if(typeof v==='string'){
+    const t=v.trim().toLowerCase();
+    return t==='1'||t==='on'||t==='true';
+  }
+  return !!v;
+}
+const fmtNow=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;};
+
+/* ===== 캐시 우선 적용(깜빡임 최소화) ===== */
 (function(){
   const raw=localStorage.getItem(LS_LAST_STATUS);
   if(!raw) return;
   try{applyStatus(JSON.parse(raw),true);}catch(_){}
 })();
 
-/* 버튼 상태 */
+/* ===== LED 버튼 동기화 ===== */
 function syncButtons(on){
   const bon=$('#on'), boff=$('#off');
   bon.classList.remove('active','dim'); boff.classList.remove('active','dim');
@@ -208,12 +218,12 @@ function syncButtons(on){
   else  { boff.classList.add('active'); bon.classList.add('dim'); }
 }
 
-/* 상태 적용 (좌측 요약에는 LED 표기 제거) */
+/* ===== 상태 적용 (하단 요약엔 LED 제거) ===== */
 function applyStatus(s,fromCache=false){
   const aT=Number(s.aht_t), aH=Number(s.aht_h),
         sT=Number(s.scd_t), sH=Number(s.scd_h),
         co=Number(s.co2);
-  const led=(s.led=='1'||s.led===1||s.led===true||s.led==='on');
+  const led = toBool(s.led);
 
   if(!Number.isNaN(aT)) $('#aht_t').textContent=aT.toFixed(1)+' °C';
   if(!Number.isNaN(aH)) $('#aht_h').textContent=Math.round(aH)+' %';
@@ -233,12 +243,7 @@ function applyStatus(s,fromCache=false){
   $('#ts').textContent=fmtNow();
 }
 
-/* 폴링 */
-const fastMs=3000;
-async function refreshFast(){ try{const s=await fetchFirstJson(EP.status);applyStatus(s,false);}catch(_){/* silent */} }
-const fmtNow=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;};
-
-/* 토글 */
+/* ===== 테이블/그래프 토글 ===== */
 const secTable=$('#tableSection'), secGraph=$('#graphSection');
 $('#toggleTable').onclick=()=>{
   const open=secTable.classList.toggle('open');
@@ -251,35 +256,39 @@ $('#toggleGraph').onclick=()=>{
   if(open) renderAllCharts();
 };
 
-/* 히스토리(표에만 사용) */
-function addRowTop(o,ts){
-  const tb=$('#logtbl'); const d=ts?new Date(ts):new Date();
-  const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0');
-  const tr=document.createElement('tr');
-  tr.innerHTML=`<td>${hh}:${mm}</td><td>${Number(o.aht_t).toFixed(1)}</td><td>${Math.round(Number(o.aht_h))}</td>
-                <td>${Number(o.scd_t).toFixed(1)}</td><td>${Math.round(Number(o.scd_h))}</td><td>${o.co2}</td><td>${o.led?'ON':'OFF'}</td>`;
-  if(tb.firstChild) tb.insertBefore(tr,tb.firstChild); else tb.appendChild(tr);
-  while(tb.rows.length>60) tb.deleteRow(tb.rows.length-1);
-}
+/* ===== 테이블: 과거 60분 로드 ===== */
 async function loadHistory60(){
   try{
     const list=await fetchFirstJson(EP.history60);
     $('#logtbl').innerHTML='';
     const now=Date.now();
     for(const it of list){
-      const ts=it.timestamp?new Date(it.timestamp):new Date(now-(it.age||0)*60000);
+      const ts=it.timestamp?new Date(it.timestamp):
+               new Date(now-(it.age||0)*60000);
       addRowTop(it,ts);
     }
   }catch(_){}
 }
-
-/* 간단 캔버스 차트 (그래프 섹션에서만 렌더) */
-let histBuf=[]; const dpr=()=>window.devicePixelRatio||1;
-function prepCanvas(c){
-  const r=c.getBoundingClientRect(); const w=Math.max(1,r.width), h=Math.max(1,r.height);
-  c.width=Math.floor(w*dpr()); c.height=Math.floor(h*dpr());
-  const ctx=c.getContext('2d'); ctx.setTransform(dpr(),0,0,dpr(),0,0); return ctx;
+function addRowTop(o,ts){
+  const tb=$('#logtbl');
+  const d=ts?new Date(ts):new Date();
+  const hh=String(d.getHours()).padStart(2,'0');
+  const mm=String(d.getMinutes()).padStart(2,'0');
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td>${hh}:${mm}</td>
+    <td>${Number(o.aht_t).toFixed(1)}</td>
+    <td>${Math.round(Number(o.aht_h))}</td>
+    <td>${Number(o.scd_t).toFixed(1)}</td>
+    <td>${Math.round(Number(o.scd_h))}</td>
+    <td>${Math.round(Number(o.co2))}</td>
+    <td>${toBool(o.led)?'ON':'OFF'}</td>`;
+  if(tb.firstChild) tb.insertBefore(tr,tb.firstChild); else tb.appendChild(tr);
+  while(tb.rows.length>60) tb.deleteRow(tb.rows.length-1);
 }
+
+/* ===== 차트(간단, 점선 없음) ===== */
+let histBuf=[]; const dpr=()=>window.devicePixelRatio||1;
+function prepCanvas(c){const r=c.getBoundingClientRect();const w=Math.max(1,r.width),h=Math.max(1,r.height);c.width=Math.floor(w*dpr());c.height=Math.floor(h*dpr());const ctx=c.getContext('2d');ctx.setTransform(dpr(),0,0,dpr(),0,0);return ctx;}
 function drawChart(c,series){
   const ctx=prepCanvas(c); const W=c.clientWidth,H=c.clientHeight;
   const padL=38,padR=10,padT=10,padB=26,plotW=W-padL-padR,plotH=H-padT-padB;
@@ -323,26 +332,90 @@ function renderAllCharts(){
   drawChart(document.getElementById('chCO2'), [co2]);
 }
 
-/* LED 제어 */
+/* ===== 1분 평균 자동 추가(분 버퍼) ===== */
+let minuteKey=null;            // 현재 분 키 (시*60+분)
+let minuteSamples=[];          // 현재 분에 수집된 샘플들
+
+function pushMinuteSample(s, now){
+  const key = now.getHours()*60 + now.getMinutes();
+  // 분 변경 감지 → 직전 분 평균을 테이블에 추가
+  if(minuteKey!==null && key!==minuteKey && minuteSamples.length){
+    const ts = new Date(now.getFullYear(), now.getMonth(), now.getDate(),
+                        Math.floor(minuteKey/60), minuteKey%60, 0, 0);
+    const avg = k=>{
+      const vals = minuteSamples.map(x=>+x[k]).filter(Number.isFinite);
+      if(!vals.length) return NaN;
+      return vals.reduce((a,b)=>a+b,0)/vals.length;
+    };
+    const row = {
+      aht_t: avg('aht_t'),
+      aht_h: avg('aht_h'),
+      scd_t: avg('scd_t'),
+      scd_h: avg('scd_h'),
+      co2  : avg('co2'),
+      led  : minuteSamples[minuteSamples.length-1].led // 마지막 상태
+    };
+    addRowTop(row, ts);
+
+    // 차트용 버퍼도 60개만 유지
+    histBuf.push({
+      aht_t: row.aht_t, aht_h: row.aht_h,
+      scd_t: row.scd_t, scd_h: row.scd_h, co2: row.co2
+    });
+    if(histBuf.length>60) histBuf.shift();
+
+    minuteSamples = []; // 새 분을 위한 초기화
+  }
+  // 현재 샘플 추가
+  minuteKey = key;
+  minuteSamples.push({
+    aht_t:+s.aht_t, aht_h:+s.aht_h, scd_t:+s.scd_t, scd_h:+s.scd_h, co2:+s.co2,
+    led: toBool(s.led)
+  });
+}
+
+/* ===== 폴링 ===== */
+const fastMs=3000;
+async function refreshFast(){
+  try{
+    const s=await fetchFirstJson(EP.status);
+    applyStatus(s,false);
+    // 1분 평균 버퍼링
+    pushMinuteSample(s, new Date());
+  }catch(_){/* silent */}
+}
+
+/* ===== LED 제어 ===== */
 $('#on').onclick = async()=>{ try{await fetch(BASE+EP.ledOn[0], {cache:'no-store'});}catch(_){ } refreshFast(); };
 $('#off').onclick= async()=>{ try{await fetch(BASE+EP.ledOff[0],{cache:'no-store'});}catch(_){ } refreshFast(); };
 
-/* 부트 */
+/* ===== 부트 ===== */
 (async()=>{
   if(!BASE || !(await tryStatus(BASE))) await discoverBase();
-  await refreshFast(); setInterval(refreshFast, fastMs);
 
+  // 초기 테이블/차트용 과거 60분
   try{
-    const list=await fetchFirstJson(['/api/history?limit=60','/history?limit=60','/api/history','/history']);
-    histBuf=list.map(x=>({
-      aht_t:+(x.aht_t??x.aht_temp??x.temp),
-      aht_h:+(x.aht_h??x.aht_hum??x.hum),
-      scd_t:+(x.scd_t??x.scd_temp??x.st),
-      scd_h:+(x.scd_h??x.scd_hum??x.sh),
-      co2  :+(x.co2??x.scd_co2??x.ppm)
-    }));
+    const list=await fetchFirstJson(EP.history60);
+    $('#logtbl').innerHTML='';
+    const now=Date.now();
+    histBuf = [];
+    for(const it of list){
+      const ts=it.timestamp?new Date(it.timestamp):
+               new Date(now-(it.age||0)*60000);
+      addRowTop(it,ts);
+      histBuf.push({
+        aht_t:+(it.aht_t??it.aht_temp??it.temp),
+        aht_h:+(it.aht_h??it.aht_hum??it.hum),
+        scd_t:+(it.scd_t??it.scd_temp??it.st),
+        scd_h:+(it.scd_h??it.scd_hum??it.sh),
+        co2  :+(it.co2??it.scd_co2??it.ppm)
+      });
+    }
+    if(histBuf.length>60) histBuf = histBuf.slice(-60);
   }catch(_){}
 
+  await refreshFast();
+  setInterval(refreshFast, fastMs);
   setInterval(()=>{ $('#ts').textContent = fmtNow(); },1000);
 })();
 </script>
