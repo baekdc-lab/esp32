@@ -69,22 +69,9 @@ th:nth-child(7){width:52px}
 
 /* 하단 (#2 유형) : 좌측 3줄 + 우측 시간 */
 .bottomRow{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-end;
-  gap:12px;
-  color:var(--mut);
-}
-#mini{
-  white-space:pre-line;
-  font-size:12px;   /* ↓ 한 단계 줄임 (기존 13px) */
-  margin:0;
-}
-.timeText{
-  font-size:12px;   /* ↓ 한 단계 줄임 (기존 13px) */
-  white-space:nowrap;
-  margin:0 2px 0 0;
-}
+  display:flex;justify-content:space-between;align-items:flex-end;gap:12px;color:var(--mut)}
+#mini{white-space:pre-line;font-size:12px;margin:0}
+.timeText{font-size:12px;white-space:nowrap;margin:0 2px 0 0}
 
 /* 구 레이아웃 잔재 숨김 */
 #foot{display:none;}
@@ -161,9 +148,9 @@ th:nth-child(7){width:52px}
   </div>
 
   <hr>
-  <!-- 하단 (#2 유형) : 좌측 미니 3줄 + 우측 시간 -->
+  <!-- 하단 (#2 유형) : 좌측 미니 2줄 + RSSI / 우측 시간 -->
   <div class="bottomRow">
-    <div id="mini">AHT25: --.- °C | -- % | LED=--<br>SCD42: --.- °C | -- % | ---- ppm | LED=--<br>RSSI: -- [dBm]</div>
+    <div id="mini">AHT25: --.- °C | -- %<br>SCD42: --.- °C | -- % | ---- ppm<br>RSSI: -- [dBm]</div>
     <div id="ts" class="timeText">—</div>
   </div>
 </div></div>
@@ -216,13 +203,13 @@ async function fetchFirstJson(paths,opt={}){
 
 /* 버튼 상태 */
 function syncButtons(on){
-  const bon=$('#on'), boff=$('#off');
+  const bon=$('#on'), boff=$('#off']);
   bon.classList.remove('active','dim'); boff.classList.remove('active','dim');
   if(on){ bon.classList.add('active'); boff.classList.add('dim'); }
   else  { boff.classList.add('active'); bon.classList.add('dim'); }
 }
 
-/* 상태 적용 */
+/* 상태 적용 (좌하단 3줄에서는 LED 표기를 제거) */
 function applyStatus(s,fromCache=false){
   const aT=Number(s.aht_t), aH=Number(s.aht_h),
         sT=Number(s.scd_t), sH=Number(s.scd_h),
@@ -239,8 +226,8 @@ function applyStatus(s,fromCache=false){
   syncButtons(led);
 
   const rssiText=(typeof s.rssi!=='undefined')?`RSSI: ${s.rssi} [dBm]`:'RSSI: -- [dBm]';
-  const line1=`AHT25: ${Number.isNaN(aT)?'--.-':aT.toFixed(1)} °C | ${Number.isNaN(aH)?'--':Math.round(aH)} % | LED=${led?'ON':'OFF'}`;
-  const line2=`SCD42: ${Number.isNaN(sT)?'--.-':sT.toFixed(1)} °C | ${Number.isNaN(sH)?'--':Math.round(sH)} % | ${Number.isNaN(co)?'----':co} ppm | LED=${led?'ON':'OFF'}`;
+  const line1=`AHT25: ${Number.isNaN(aT)?'--.-':aT.toFixed(1)} °C | ${Number.isNaN(aH)?'--':Math.round(aH)} %`;
+  const line2=`SCD42: ${Number.isNaN(sT)?'--.-':sT.toFixed(1)} °C | ${Number.isNaN(sH)?'--':Math.round(sH)} % | ${Number.isNaN(co)?'----':co} ppm`;
   $('#mini').textContent=`${line1}\n${line2}\n${rssiText}`;
 
   if(!fromCache) localStorage.setItem(LS_LAST_STATUS, JSON.stringify(s));
