@@ -37,7 +37,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .collapsible{max-height:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;opacity:0}
 .collapsible.open{max-height:2000px;opacity:1}
 
-/* ===== 테이블(정렬/폰트 상향) ===== */
+/* ===== 테이블(정렬/폰트) ===== */
 .tablewrap{overflow:auto;background:var(--tile);border-radius:14px;padding:0;max-height:52vh}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
 thead th{
@@ -49,38 +49,31 @@ thead th{
 }
 th .t{display:block;letter-spacing:.2px}
 th .u{display:block;color:var(--mut);font-weight:700;font-size:.82em;margin-top:2px}
-
-/* 본문 값 폰트/정렬(가운데) */
 tbody td{
-  padding:8px 6px;
-  border-bottom:1px solid var(--line);
-  text-align:center;              /* ← 센서명과 값 정렬 일치 */
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  font-size:13.5px;               /* ← 폰트 확대 */
-  font-variant-numeric:tabular-nums;
+  padding:8px 6px;border-bottom:1px solid var(--line);
+  text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:13.5px;font-variant-numeric:tabular-nums;
 }
 tbody tr:nth-child(even){background:var(--zebra)}
-
-/* 데스크톱 폭 — 균형 */
-th:nth-child(1),td:nth-child(1){width:68px}   /* 시간 */
-th:nth-child(2),td:nth-child(2){width:80px}   /* AHT °C */
-th:nth-child(3),td:nth-child(3){width:72px}   /* AHT %  */
-th:nth-child(4),td:nth-child(4){width:78px}   /* SCD °C */
-th:nth-child(5),td:nth-child(5){width:66px}   /* SCD %  */
-th:nth-child(6),td:nth-child(6){width:100px}  /* CO₂    */
-th:nth-child(7),td:nth-child(7){width:66px}   /* LED    */
-
-/* 모바일 — 2줄 헤더 유지, 폰트 살짝 업, 합계 100% */
+/* 데스크톱 폭 */
+th:nth-child(1),td:nth-child(1){width:68px}
+th:nth-child(2),td:nth-child(2){width:80px}
+th:nth-child(3),td:nth-child(3){width:72px}
+th:nth-child(4),td:nth-child(4){width:78px}
+th:nth-child(5),td:nth-child(5){width:66px}
+th:nth-child(6),td:nth-child(6){width:100px}
+th:nth-child(7),td:nth-child(7){width:66px}
+/* 모바일 — 폰트 14px로 상향 */
 @media (max-width:480px){
-  thead th{padding:8px 4px 7px;font-size:12.5px}
-  tbody td{padding:7px 4px;font-size:13px}
-  th:nth-child(1),td:nth-child(1){width:16%} /* 시간 */
-  th:nth-child(2),td:nth-child(2){width:13%} /* AHT °C */
-  th:nth-child(3),td:nth-child(3){width:12%} /* AHT %  */
-  th:nth-child(4),td:nth-child(4){width:13%} /* SCD °C */
-  th:nth-child(5),td:nth-child(5){width:12%} /* SCD %  */
-  th:nth-child(6),td:nth-child(6){width:19%} /* CO₂    */
-  th:nth-child(7),td:nth-child(7){width:15%} /* LED    */
+  thead th{padding:8px 4px 7px;font-size:14px}
+  tbody td{padding:7px 4px;font-size:14px}
+  th:nth-child(1),td:nth-child(1){width:16%}
+  th:nth-child(2),td:nth-child(2){width:13%}
+  th:nth-child(3),td:nth-child(3){width:12%}
+  th:nth-child(4),td:nth-child(4){width:13%}
+  th:nth-child(5),td:nth-child(5){width:12%}
+  th:nth-child(6),td:nth-child(6){width:19%}
+  th:nth-child(7),td:nth-child(7){width:15%}
 }
 
 /* 차트/하단 */
