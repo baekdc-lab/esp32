@@ -83,9 +83,6 @@ input[type="password"]{min-width:220px;flex:1}
       <div class="row" style="margin-top:6px">
         <span id="wifi" class="badge"></span>
       </div>
-      <div class="small" style="margin-top:6px">
-        ※ 최초 설정은 장치 SoftAP(ESP32-Setup / 192.168.4.1)에서 완료하세요. 이후에는 본 페이지에서 Wi-Fi 변경 가능(명령은 MQTT로 전달).
-      </div>
     </div>
 
     <div class="box">
@@ -162,7 +159,6 @@ client.on('message', (topic, payload) => {
 function num(v){ return Number(v); }
 
 function setLedButtonsState(isOn){
-  // ON이면 ON버튼을 녹색, OFF버튼 회색 / OFF이면 반대로
   el.ledOn.className  = 'btn ' + (isOn ? 'btn-green' : 'btn-gray');
   el.ledOff.className = 'btn ' + (!isOn ? 'btn-green' : 'btn-gray');
 }
@@ -206,7 +202,6 @@ el.connect.onclick= ()=>{
   el.wifi.textContent = '연결 시도 중…';
   setTimeout(()=> client.publish('esp32/cmd/wifi_status',''), 2500);
 };
-// Enter키로도 연결
 el.pw.addEventListener('keydown', (e)=>{
   if(e.key==='Enter'){ el.connect.click(); }
 });
