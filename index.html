@@ -41,7 +41,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 /* 테이블 */
 .tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh}
 :root.light .tablewrap{background:#eef1f7}
-table{border-collapse:collapse;width:auto;min-width:100%}
+table{border-collapse:collapse;min-width:100%}
 thead th{position:sticky;top:0;background:#12203a}
 :root.light thead th{background:#d6deec}
 th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:13px}
@@ -59,14 +59,14 @@ th:nth-child(7){width:52px}
 .canvas-wrap{position:relative;width:100%;height:200px}
 .canvas-wrap canvas{position:absolute;inset:0;width:100%;height:100%}
 
-/* 범례(짧은 바) */
+/* 범례 */
 .legend{display:flex;gap:14px;align-items:center;margin:0 0 6px 2px;color:var(--mut);font-size:12px}
 .legend .item{display:flex;align-items:center;gap:6px}
 .swatch{display:inline-block;width:16px;height:6px;border-radius:3px}
 .swatch.blue{background:#7aa0ff}
 .swatch.orange{background:#ff9a7a}
 
-/* 하단 한 줄(요약 + 시간) */
+/* 하단 한 줄 */
 .bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;color:var(--mut)}
 #mini{white-space:pre-line;font-size:12px;margin:0}
 .timeText{font-size:12px;white-space:nowrap;margin:0 2px 0 0}
@@ -89,12 +89,17 @@ input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);ba
 .modal-ft{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 .small{font-size:12px;color:var(--mut)}
 .badge{font-size:11px;padding:2px 6px;border-radius:999px;border:1px solid var(--btn-border);color:var(--mut)}
+/* 고급(수동 연결) */
+.adv{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px;display:none}
+.adv.show{display:block}
+.adv .row{display:flex;gap:6px}
+.adv input{flex:1}
 </style>
 </head>
 <body>
 <div class="wrap"><div class="card">
   <h1>
-    ESP32 센서보드
+    ESP32 센서 대시보드
     <span>
       <button id="wifiBtn" class="btn">Wi-Fi 설정</button>
       <span class="theme-toggle" id="themeToggle">🌙</span>
@@ -197,45 +202,86 @@ input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);ba
       <button id="forgetBtn" class="btn off">저장삭제</button>
       <button id="connectBtn" class="btn on">연결</button>
     </div>
+
+    <!-- 고급(수동 연결) -->
+    <div id="adv" class="adv">
+      <div class="small" style="margin-bottom:6px">장치 주소 수동 입력 (예: http://esp32.local 또는 http://192.168.4.1)</div>
+      <div class="row">
+        <input id="baseInput" placeholder="http://esp32.local" />
+        <button id="baseSave" class="btn">저장/재시도</button>
+      </div>
+    </div>
+    <div id="advToggle" class="small" style="text-align:right;margin-top:8px;cursor:pointer;color:#9fb2d7">고급(수동 연결) ▸</div>
   </div>
 </div>
 
 <script>
 const $=s=>document.querySelector(s);
 
-/* === 테마 === */
+/* ========== 유틸 (타임아웃 fetch) ========== */
+async function fetchTO(url, opt={}, ms=1200){
+  const c=new AbortController(); const t=setTimeout(()=>c.abort(),ms);
+  try{ return await fetch(url,{...opt,signal:c.signal}); }
+  finally{ clearTimeout(t); }
+}
+
+/* ========== 테마 ========== */
 const themeToggle=$('#themeToggle');
 function applyTheme(t){document.documentElement.classList.toggle('light',t==='light');themeToggle.textContent=(t==='light')?'☀️':'🌙';renderAllCharts();}
 applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
 
-/* === 네트워크 기본 === */
+/* ========== 네트워크 기본/발견 ========== */
 const LS_LAST_STATUS='esp32_last_status', LS_BASE='base';
 let BASE=(localStorage.getItem(LS_BASE)||'').replace(/\/$/,'');
-const CANDS=[]; if(BASE) CANDS.push(BASE); CANDS.push('http://esp32.local','http://192.168.31.204');
-async function tryStatus(b){try{const r=await fetch(b+'/api/status',{cache:'no-store',mode:'cors'});return r.ok}catch(_){return false}}
-async function discoverBase(){for(const b of CANDS){if(await tryStatus(b)){BASE=b;localStorage.setItem(LS_BASE,b);return true}}return false}
-async function ensureBase(){if(BASE && await tryStatus(BASE)) return true;return await discoverBase();}
+function buildCandidates(){
+  const list=[];
+  if(BASE) list.push(BASE);
+  if(location.protocol.startsWith('http')) list.push(location.origin);   // 동일 호스트에서 서비스 중인 경우
+  list.push('http://esp32.local','http://192.168.4.1','http://192.168.31.204');
+  // 중복 제거
+  return [...new Set(list)];
+}
+async function tryStatus(base){
+  try{ const r=await fetchTO(base+'/api/status',{cache:'no-store',mode:'cors'}); return r.ok; }catch(_){ return false; }
+}
+async function discoverBaseFast(){
+  const cands=buildCandidates();
+  const races=cands.map(async b=> (await tryStatus(b)) ? b : null);
+  const results=await Promise.allSettled(races);
+  const ok=results.map((r,i)=>r.status==='fulfilled'&&r.value?cands[i]:null).find(Boolean);
+  if(ok){ BASE=ok; localStorage.setItem(LS_BASE,ok); return true; }
+  return false;
+}
+async function ensureBase(){
+  if(BASE && await tryStatus(BASE)) return true;
+  return await discoverBaseFast();
+}
 
-/* === 엔드포인트 === */
+/* ========== 엔드포인트 & 공용 fetch ========== */
 const EP={
   status:['/api/status'], history60:['/api/history?limit=60'],
   ledOn:['/api/led?state=on'], ledOff:['/api/led?state=off'],
   wifiScan:['/wifi/scan'], wifiStat:['/wifi/status'],
   wifiConn:['/wifi/connect'], wifiForget:['/wifi/forget']
 };
-async function fetchFirstJson(paths,opt={}) {
+async function fetchFirstJson(paths,opt={}){
+  // BASE가 있으면 절대경로, 없으면 상대(동일 호스트)로 시도
   for(const p of paths){
-    const u=BASE ? (p.startsWith('http')?p:(BASE+p)) : p;
-    try{const r=await fetch(u,{...opt,cache:'no-store',mode:'cors'}); if(!r.ok) continue; return await r.json();}catch(_){}
+    const u = BASE ? (p.startsWith('http')?p:(BASE+p)) : p;
+    try{
+      const r=await fetchTO(u,{...opt,cache:'no-store',mode:'cors'});
+      if(!r.ok) continue;
+      return await r.json();
+    }catch(_){}
   }
   throw new Error('all failed');
 }
 
-/* === 캐시 우선 표시 === */
+/* ========== 캐시 선표시 ========== */
 (function(){const raw=localStorage.getItem(LS_LAST_STATUS); if(!raw) return; try{applyStatus(JSON.parse(raw),true);}catch(_){}})();
 
-/* === LED 표시/버튼 === */
+/* ========== LED 표시/버튼 ========== */
 function syncButtons(on){const bon=$('#on'),boff=$('#off');bon.classList.remove('active','dim');boff.classList.remove('active','dim');if(on){bon.classList.add('active');boff.classList.add('dim');}else{boff.classList.add('active');bon.classList.add('dim');}}
 function toBool(v){if(typeof v==='boolean')return v;if(typeof v==='number')return v!==0;if(typeof v==='string'){const t=v.trim().toLowerCase();return t==='1'||t==='on'||t==='true';}return !!v;}
 function applyStatus(s,fromCache=false){
@@ -254,12 +300,11 @@ function applyStatus(s,fromCache=false){
   $('#ts').textContent=fmtNow();
 }
 
-/* === 테이블/그래프 토글 === */
+/* ========== 테이블/그래프 ========== */
 const secTable=$('#tableSection'), secGraph=$('#graphSection');
 $('#toggleTable').onclick=()=>{const open=secTable.classList.toggle('open');$('#toggleTable').textContent=open?'📋 테이블 숨기기':'📋 테이블 보기';if(open && !$('#logtbl').children.length) loadHistory60();};
 $('#toggleGraph').onclick=()=>{const open=secGraph.classList.toggle('open');$('#toggleGraph').textContent=open?'📊 그래프 숨기기':'📊 그래프 보기';if(open) renderAllCharts();};
 
-/* === 히스토리(표) === */
 async function loadHistory60(){
   try{
     await ensureBase();
@@ -285,7 +330,7 @@ function addRowTop(o,ts){
   while(tb.rows.length>60) tb.deleteRow(tb.rows.length-1);
 }
 
-/* === 차트 === */
+/* ========== 차트 ========== */
 let histBuf=[]; const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(c){const r=c.getBoundingClientRect();const w=Math.max(1,r.width),h=Math.max(1,r.height);c.width=Math.floor(w*dpr());c.height=Math.floor(h*dpr());const ctx=c.getContext('2d');ctx.setTransform(dpr(),0,0,dpr(),0,0);return ctx;}
 function drawChart(c,series){
@@ -331,7 +376,7 @@ function renderAllCharts(){
   drawChart(document.getElementById('chCO2'), [co2]);
 }
 
-/* === 1분 평균 (브라우저 버퍼) === */
+/* ========== 1분 평균 버퍼 ========== */
 let minuteKey=null, minuteSamples=[];
 function pushMinuteSample(s, now){
   const key=now.getHours()*60+now.getMinutes();
@@ -347,19 +392,43 @@ function pushMinuteSample(s, now){
   minuteSamples.push({aht_t:+s.aht_t,aht_h:+s.aht_h,scd_t:+s.scd_t,scd_h:+s.scd_h,co2:+s.co2,led:toBool(s.led)});
 }
 
-/* === Wi-Fi 모달 === */
+/* ========== Wi-Fi 모달 ========== */
 const wifiBtn=$('#wifiBtn'), wifiModal=$('#wifiModal'), wifiClose=$('#wifiClose');
 const scanBtn=$('#scanBtn'), apList=$('#apList'), wifiStat=$('#wifiStat');
 const ssidInp=$('#ssid'), passInp=$('#pass'), connectBtn=$('#connectBtn'), forgetBtn=$('#forgetBtn');
+const adv=$('#adv'), advToggle=$('#advToggle'), baseInput=$('#baseInput'), baseSave=$('#baseSave');
 
-wifiBtn.onclick=async()=>{wifiModal.classList.add('open');wifiStat.textContent='상태 확인 중…';await ensureBase();try{const s=await fetchFirstJson(EP.wifiStat);wifiStat.textContent=s.connected?`연결됨: ${s.ssid} (${s.ip})`:'미연결';}catch(_){wifiStat.textContent='상태 확인 실패';}};
+advToggle.onclick=()=>{ adv.classList.toggle('show'); advToggle.textContent = adv.classList.contains('show')?'고급(수동 연결) ▾':'고급(수동 연결) ▸'; if(BASE) baseInput.value=BASE; };
+baseSave.onclick=async()=>{
+  const v=baseInput.value.trim().replace(/\/$/,'');
+  if(!v){ alert('주소를 입력하세요.'); return; }
+  BASE=v; localStorage.setItem(LS_BASE,BASE);
+  wifiStat.textContent='재시도 중…';
+  const ok=await ensureBase();
+  wifiStat.textContent = ok ? `연결 확인: ${BASE}` : '연결 실패';
+};
+
+wifiBtn.onclick=async()=>{
+  wifiModal.classList.add('open');
+  wifiStat.textContent='상태 확인 중…';
+  const ok=await ensureBase();
+  try{
+    if(!ok) throw 0;
+    const s=await fetchFirstJson(EP.wifiStat);
+    wifiStat.textContent = s.connected ? `연결됨: ${s.ssid} (${s.ip})` : `미연결 (장치: ${BASE})`;
+  }catch(_){
+    wifiStat.textContent='장치 검색 실패';
+    adv.classList.add('show');
+    advToggle.textContent='고급(수동 연결) ▾';
+  }
+};
 wifiClose.onclick=()=>wifiModal.classList.remove('open');
 
 scanBtn.onclick=async()=>{
-  await ensureBase();
   scanBtn.disabled=true; scanBtn.textContent='스캔 중…';
   apList.innerHTML='<div class="item"><span>스캔 중…</span></div>';
   try{
+    const ok=await ensureBase(); if(!ok) throw 0;
     const list=await fetchFirstJson(EP.wifiScan);
     apList.innerHTML='';
     if(!Array.isArray(list)||!list.length){apList.innerHTML='<div class="item"><span>검색 결과 없음</span></div>';}
@@ -372,40 +441,43 @@ scanBtn.onclick=async()=>{
         apList.appendChild(row);
       });
     }
-  }catch(_){apList.innerHTML='<div class="item"><span>스캔 실패</span></div>';}
+  }catch(_){
+    apList.innerHTML='<div class="item"><span>스캔 실패</span></div>';
+    adv.classList.add('show'); advToggle.textContent='고급(수동 연결) ▾';
+  }
   scanBtn.disabled=false; scanBtn.textContent='AP 스캔';
 };
 
 connectBtn.onclick=async()=>{
-  await ensureBase();
   const ssid=ssidInp.value.trim(), pass=passInp.value;
   if(!ssid){alert('SSID를 선택/입력하세요.');return;}
   try{
-    const r=await fetch(BASE+EP.wifiConn[0],{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,pass}),mode:'cors'});
+    const ok=await ensureBase(); if(!ok) throw 0;
+    const r=await fetchTO(BASE+EP.wifiConn[0],{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ssid,pass}),mode:'cors'},3000);
     const j=await r.json();
     if(r.ok&&j.ok){alert('연결 성공: '+(j.ip||''));wifiStat.textContent=`연결됨: ${ssid} (${j.ip||''})`;}
     else alert('연결 실패');
-  }catch(e){alert('연결 에러');}
+  }catch(e){ alert('연결 에러/장치 미발견'); adv.classList.add('show'); advToggle.textContent='고급(수동 연결) ▾'; }
 };
 
 forgetBtn.onclick=async()=>{
-  await ensureBase();
   try{
-    await fetch(BASE+EP.wifiForget[0],{method:'POST',mode:'cors'});
-    ssidInp.value='';passInp.value='';wifiStat.textContent='미연결(저장 삭제됨)';
-  }catch(_){alert('삭제 실패');}
+    const ok=await ensureBase(); if(!ok) throw 0;
+    await fetchTO(BASE+EP.wifiForget[0],{method:'POST',mode:'cors'},2000);
+    ssidInp.value=''; passInp.value=''; wifiStat.textContent='미연결(저장 삭제됨)';
+  }catch(_){ alert('삭제 실패(장치 미발견)'); }
 };
 
-/* === 폴링 === */
+/* ========== 폴링 ========== */
 const fastMs=3000;
 const fmtNow=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;};
 async function refreshFast(){try{await ensureBase();const s=await fetchFirstJson(EP.status);applyStatus(s,false);pushMinuteSample(s,new Date());}catch(_){ }}
 
 /* LED 제어 */
-$('#on').onclick=async()=>{try{await ensureBase();await fetch(BASE+EP.ledOn[0],{cache:'no-store',mode:'cors'});}catch(_){ }refreshFast();};
-$('#off').onclick=async()=>{try{await ensureBase();await fetch(BASE+EP.ledOff[0],{cache:'no-store',mode:'cors'});}catch(_){ }refreshFast();};
+$('#on').onclick=async()=>{try{await ensureBase();await fetchTO(BASE+EP.ledOn[0],{mode:'cors'},1500);}catch(_){ }refreshFast();};
+$('#off').onclick=async()=>{try{await ensureBase();await fetchTO(BASE+EP.ledOff[0],{mode:'cors'},1500);}catch(_){ }refreshFast();};
 
-/* === 부트 === */
+/* ========== 부트 ========== */
 (async()=>{
   await ensureBase();
   try{
