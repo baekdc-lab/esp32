@@ -4,7 +4,12 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>ESP32 센서보드 (MQTT)</title>
+
+<!-- MQTT over WSS -->
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<!-- Chart.js (그래프) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
 <style>
 :root{
   --bg:#0b1020; --card:#131a2b; --tile:#0f1526;
@@ -14,7 +19,7 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--txt);
      font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif}
-.wrap{max-width:960px;margin:18px auto;padding:0 12px}
+.wrap{max-width:980px;margin:18px auto;padding:0 12px}
 .card{background:var(--card);border-radius:16px;padding:16px 16px 18px;
       box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .header{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -28,9 +33,15 @@ h1{margin:0;font-size:26px;font-weight:800}
      font-weight:800;min-width:98px;font-size:15px}
 .btn-green{background:var(--green)}
 .btn-gray{background:var(--gray)}
+.btn-blue{background:var(--blue)}
 .hr{height:1px;background:var(--line);margin:14px 0}
 .box{background:var(--tile);border-radius:12px;padding:12px;margin-top:10px}
 .small{font-size:12px;color:var(--mut)}
+/* 테이블 */
+.table{width:100%;border-collapse:collapse;margin-top:8px}
+.table th,.table td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:right}
+.table th:first-child,.table td:first-child{text-align:left}
+.hide{display:none}
 </style>
 </head>
 <body>
@@ -54,17 +65,51 @@ h1{margin:0;font-size:26px;font-weight:800}
       <button id="ledOn"  class="btn btn-gray">LED ON</button>
       <button id="ledOff" class="btn btn-gray">LED OFF</button>
       <span id="ledStat" class="badge">LED: -</span>
+      <span id="mini" class="small" style="margin-left:auto">
+        AHT25: --.- °C | -- % · SCD42: --.- °C | -- % · CO₂: ---- ppm · RSSI: -- dBm
+      </span>
     </div>
 
-    <div class="box">
-      <div id="mini" class="small">AHT25: --.- °C | -- % · SCD42: --.- °C | -- % · CO₂: ---- ppm · RSSI: -- dBm</div>
+    <div class="hr"></div>
+
+    <div class="row" style="margin-bottom:6px">
+      <button id="tableToggle"  class="btn btn-blue">테이블 보기</button>
+      <button id="chartToggle"  class="btn btn-blue">그래프 보기</button>
+    </div>
+
+    <!-- 테이블 -->
+    <div id="tableWrap" class="box hide">
+      <div class="small">최근 60분 (1분 평균값)</div>
+      <table class="table" id="histTable">
+        <thead>
+          <tr>
+            <th>시각</th>
+            <th>AHT 온도(°C)</th>
+            <th>AHT 습도(%)</th>
+            <th>SCD 온도(°C)</th>
+            <th>SCD 습도(%)</th>
+            <th>CO₂(ppm)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- 그래프 -->
+    <div id="chartWrap" class="box hide">
+      <div class="small" style="margin-bottom:8px">최근 60분 (1분 평균값)</div>
+      <canvas id="chartTemp" height="180"></canvas>
+      <div style="height:10px"></div>
+      <canvas id="chartHum" height="180"></canvas>
+      <div style="height:10px"></div>
+      <canvas id="chartCo2" height="180"></canvas>
     </div>
 
   </div>
 </div>
 
 <script>
-/* ===== MQTT (HiveMQ Cloud WSS) ===== */
+/* ========== MQTT (HiveMQ Cloud WSS) ========== */
 const brokerUrl = "wss://6c56aefe0ddb4d57977c735f5070abe8.s1.eu.hivemq.cloud:8884/mqtt";
 const options = {
   username: "mqtt_ESP32",
@@ -75,7 +120,7 @@ const options = {
 };
 const client = mqtt.connect(brokerUrl, options);
 
-/* ===== Elements ===== */
+/* ========== 엘리먼트 ========== */
 const $ = s => document.querySelector(s);
 const el = {
   conn: $('#conn'),
@@ -83,14 +128,153 @@ const el = {
   scd_t: $('#scd_t'), scd_h: $('#scd_h'),
   co2:   $('#co2'),
   ledOn: $('#ledOn'), ledOff: $('#ledOff'), ledStat: $('#ledStat'),
-  mini:  $('#mini')
+  mini:  $('#mini'),
+  tableWrap: $('#tableWrap'), chartWrap: $('#chartWrap'),
+  tableToggle: $('#tableToggle'), chartToggle: $('#chartToggle'),
+  histTbody: $('#histTable tbody')
 };
 
-/* ===== MQTT Handlers ===== */
+/* ========== 데이터 버퍼 & 집계(60분) ========== */
+const raw = []; // 실시간 수신 저장
+const BUCKET_MIN = 60; // 최근 60분
+function nowMin() { return Math.floor(Date.now()/60000); } // 분 단위 타임스탬프
+function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+/* 1분 버킷: 최근 60분 배열 생성 */
+function buildBuckets(){
+  const end = nowMin();         // 현재 분
+  const start = end - (BUCKET_MIN-1); // 60칸
+  const buckets = [];
+  for(let m=start;m<=end;m++){
+    buckets.push({key:m, aht_t:[], aht_h:[], scd_t:[], scd_h:[], co2:[]});
+  }
+  // raw에서 해당 구간만 집계
+  for(const r of raw){
+    const k = Math.floor(r.ts/60000);
+    if(k < start || k > end) continue;
+    const b = buckets[k-start];
+    if(Number.isFinite(r.aht_t)) b.aht_t.push(r.aht_t);
+    if(Number.isFinite(r.aht_h)) b.aht_h.push(r.aht_h);
+    if(Number.isFinite(r.scd_t)) b.scd_t.push(r.scd_t);
+    if(Number.isFinite(r.scd_h)) b.scd_h.push(r.scd_h);
+    if(Number.isFinite(r.co2))   b.co2.push(r.co2);
+  }
+  // 평균값으로 치환
+  return buckets.map(b=>{
+    const avg = arr => arr.length ? arr.reduce((a,c)=>a+c,0)/arr.length : null;
+    return {
+      key:b.key,
+      aht_t:avg(b.aht_t), aht_h:avg(b.aht_h),
+      scd_t:avg(b.scd_t), scd_h:avg(b.scd_h),
+      co2:avg(b.co2)
+    };
+  });
+}
+
+/* 표 렌더 */
+function renderTable(){
+  const buckets = buildBuckets();
+  el.histTbody.innerHTML = '';
+  const fmt = m => {
+    const d = new Date(m*60000);
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mm = String(d.getMinutes()).padStart(2,'0');
+    return `${hh}:${mm}`;
+  };
+  for(let i=buckets.length-1;i>=0;i--){ // 최신이 위로 오도록
+    const b = buckets[i];
+    const tr = document.createElement('tr');
+    const cells = [
+      fmt(b.key),
+      b.aht_t==null?'—':b.aht_t.toFixed(1),
+      b.aht_h==null?'—':Math.round(b.aht_h),
+      b.scd_t==null?'—':b.scd_t.toFixed(1),
+      b.scd_h==null?'—':Math.round(b.scd_h),
+      b.co2==null?'—':Math.round(b.co2)
+    ];
+    cells.forEach((v,idx)=>{
+      const td=document.createElement('td');
+      td.textContent=v;
+      if(idx===0) td.style.textAlign='left';
+      tr.appendChild(td);
+    });
+    el.histTbody.appendChild(tr);
+  }
+}
+
+/* 그래프 초기화 */
+const labels60 = Array.from({length:BUCKET_MIN},(_,i)=>`${i===BUCKET_MIN-1?'지금':`-${BUCKET_MIN-1-i}m`}`);
+const ctxT = document.getElementById('chartTemp');
+const ctxH = document.getElementById('chartHum');
+const ctxC = document.getElementById('chartCo2');
+
+function mkChart(ctx, labelA, labelB){
+  return new Chart(ctx, {
+    type:'line',
+    data:{labels:labels60, datasets:[
+      {label:labelA, data:Array(BUCKET_MIN).fill(null), borderWidth:2, pointRadius:0, spanGaps:false},
+      {label:labelB, data:Array(BUCKET_MIN).fill(null), borderWidth:2, pointRadius:0, spanGaps:false}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#cfe1ff'}}},
+      scales:{x:{ticks:{color:'#9fb2d7'}}, y:{ticks:{color:'#9fb2d7'}, grid:{color:'#1d2a46'}}}
+    }
+  });
+}
+function mkChartOne(ctx, label){
+  return new Chart(ctx, {
+    type:'line',
+    data:{labels:labels60, datasets:[
+      {label:label, data:Array(BUCKET_MIN).fill(null), borderWidth:2, pointRadius:0, spanGaps:false}
+    ]},
+    options:{responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#cfe1ff'}}},
+      scales:{x:{ticks:{color:'#9fb2d7'}}, y:{ticks:{color:'#9fb2d7'}, grid:{color:'#1d2a46'}}}
+    }
+  });
+}
+const chartT = mkChart(ctxT, 'AHT25 온도', 'SCD42 온도');
+const chartH = mkChart(ctxH, 'AHT25 습도', 'SCD42 습도');
+const chartC = mkChartOne(ctxC, 'SCD42 CO₂');
+
+/* 그래프 데이터 업데이트 */
+function renderCharts(){
+  const buckets = buildBuckets();
+  // buckets 길이=60, labels60과 정렬 맞추기
+  const toSeries = key => buckets.map(b => b[key]===null?null: +b[key].toFixed(key==='co2'?0:1));
+  chartT.data.datasets[0].data = toSeries('aht_t');
+  chartT.data.datasets[1].data = toSeries('scd_t');
+  chartH.data.datasets[0].data = toSeries('aht_h');
+  chartH.data.datasets[1].data = toSeries('scd_h');
+  chartC.data.datasets[0].data = toSeries('co2');
+  chartT.update(); chartH.update(); chartC.update();
+}
+
+/* ========== UI/상태 렌더 ========== */
+function n(v){ return Number(v); }
+function setLedButtonsState(isOn){
+  el.ledOn.className  = 'btn ' + (isOn ? 'btn-green' : 'btn-gray');
+  el.ledOff.className = 'btn ' + (!isOn ? 'btn-green' : 'btn-gray');
+}
+function renderLive(s){
+  if(!Number.isNaN(n(s.aht_t))) el.aht_t.textContent=n(s.aht_t).toFixed(1)+' °C';
+  if(!Number.isNaN(n(s.aht_h))) el.aht_h.textContent=Math.round(n(s.aht_h))+' %';
+  if(!Number.isNaN(n(s.scd_t))) el.scd_t.textContent=n(s.scd_t).toFixed(1)+' °C';
+  if(!Number.isNaN(n(s.scd_h))) el.scd_h.textContent=Math.round(n(s.scd_h))+' %';
+  if(!Number.isNaN(n(s.co2)))   el.co2.textContent=Math.round(n(s.co2))+' ppm';
+  if(typeof s.led!=='undefined'){
+    const on=!!s.led; el.ledStat.textContent='LED: '+(on?'ON':'OFF'); setLedButtonsState(on);
+  }
+  const rssi = (typeof s.rssi!=='undefined') ? s.rssi : '--';
+  el.mini.textContent =
+    `AHT25: ${el.aht_t.textContent} · SCD42: ${el.scd_t.textContent} | `+
+    `${el.scd_h.textContent} · CO₂: ${el.co2.textContent} · RSSI: ${rssi} dBm`;
+}
+
+/* ========== MQTT 이벤트 ========== */
 client.on('connect', () => {
   el.conn.textContent = '브로커 연결됨';
-  client.subscribe('esp32/status');       // 장치→웹: 센서/LED/RSSI
-  // 부팅 직후 장치가 3초 주기로 주는 status를 기다리면 됨
+  client.subscribe('esp32/status');
 });
 client.on('reconnect', ()=> el.conn.textContent='브로커 재연결 중…');
 client.on('offline',  ()=> el.conn.textContent='브로커 오프라인');
@@ -99,36 +283,38 @@ client.on('error',    err=> el.conn.textContent='에러: '+err.message);
 client.on('message', (topic, payload) => {
   if(topic!=='esp32/status') return;
   const s = JSON.parse(new TextDecoder().decode(payload));
-  renderSensor(s);
+  // 실시간 카드
+  renderLive(s);
+  // 버퍼 저장
+  raw.push({
+    ts: Date.now(),
+    aht_t: Number(s.aht_t), aht_h: Number(s.aht_h),
+    scd_t: Number(s.scd_t), scd_h: Number(s.scd_h),
+    co2:   Number(s.co2)
+  });
+  // 오래된 데이터 제거(2시간 보존)
+  const limit = Date.now() - 2*60*60*1000;
+  while(raw.length && raw[0].ts < limit) raw.shift();
 });
 
-/* ===== UI Logic ===== */
-function n(v){ return Number(v); }
-function setLedButtonsState(isOn){
-  el.ledOn.className  = 'btn ' + (isOn ? 'btn-green' : 'btn-gray');
-  el.ledOff.className = 'btn ' + (!isOn ? 'btn-green' : 'btn-gray');
-}
-function renderSensor(s){
-  if(!Number.isNaN(n(s.aht_t))) el.aht_t.textContent=n(s.aht_t).toFixed(1)+' °C';
-  if(!Number.isNaN(n(s.aht_h))) el.aht_h.textContent=Math.round(n(s.aht_h))+' %';
-  if(!Number.isNaN(n(s.scd_t))) el.scd_t.textContent=n(s.scd_t).toFixed(1)+' °C';
-  if(!Number.isNaN(n(s.scd_h))) el.scd_h.textContent=Math.round(n(s.scd_h))+' %';
-  if(!Number.isNaN(n(s.co2)))   el.co2.textContent=Math.round(n(s.co2))+' ppm';
-  if(typeof s.led!=='undefined'){
-    const on=!!s.led;
-    el.ledStat.textContent='LED: '+(on?'ON':'OFF');
-    setLedButtonsState(on);
-  }
-  const rssi = (typeof s.rssi!=='undefined') ? s.rssi : '--';
-  el.mini.textContent =
-    `AHT25: ${el.aht_t.textContent} | ${el.aht_h.textContent} · `+
-    `SCD42: ${el.scd_t.textContent} | ${el.scd_h.textContent} · `+
-    `CO₂: ${el.co2.textContent} · RSSI: ${rssi} dBm`;
-}
-
-/* LED 제어 → mqtt topic: esp32/led */
+/* ========== LED 제어 ========== */
 el.ledOn.onclick  = ()=> client.publish('esp32/led','on');
 el.ledOff.onclick = ()=> client.publish('esp32/led','off');
+
+/* ========== 토글 버튼 ========== */
+function toggle(elWrap, btn, labelShow, labelHide){
+  const isHidden = elWrap.classList.contains('hide');
+  if(isHidden){ elWrap.classList.remove('hide'); btn.textContent=labelHide; }
+  else        { elWrap.classList.add('hide');    btn.textContent=labelShow; }
+}
+el.tableToggle.onclick = ()=> toggle(el.tableWrap, el.tableToggle, '테이블 보기', '테이블 숨기기');
+el.chartToggle.onclick = ()=> toggle(el.chartWrap, el.chartToggle, '그래프 보기', '그래프 숨기기');
+
+/* ========== 주기 업데이트 ========== */
+/* 10초마다 테이블/그래프 동기화 */
+setInterval(()=>{ renderTable(); renderCharts(); }, 10000);
+/* 초기에 한 번 렌더 */
+renderTable(); renderCharts();
 </script>
 </body>
 </html>
