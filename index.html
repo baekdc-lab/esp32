@@ -3,68 +3,97 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>ESP32 센서 보드 (MQTT)</title>
+<title>ESP32 센서보드 (MQTT)</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
-:root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif}
-.wrap{max-width:900px;margin:20px auto;padding:0 12px}
-.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
-.badge{color:var(--mut);font-size:14px}
-.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
-.tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px}
-.v{font-size:22px;font-weight:800;margin-top:4px}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
-.btn{border:0;color:#fff;padding:10px 12px;border-radius:12px;cursor:pointer;font-weight:800;min-width:90px;font-size:15px}
-.btn.on{background:#2d6bff}.btn.off{background:#32405e}.btn.active{background:#00cc66}.btn.dim{background:#1b2236}
-.box{background:#0f1526;border-radius:12px;padding:12px;margin-top:10px}
-select,input{background:#0f1526;color:#e8eefc;border:1px solid var(--line);border-radius:10px;padding:10px}
-.hr{height:1px;background:var(--line);margin:14px 0}
+:root{
+  --bg:#0b1020; --card:#131a2b; --tile:#0f1526;
+  --txt:#e8eefc; --mut:#9fb2d7; --line:#22314f;
+  --green:#00cc66; --blue:#2d6bff; --gray:#32405e;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--txt);
+     font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif}
+.wrap{max-width:960px;margin:18px auto;padding:0 12px}
+.card{background:var(--card);border-radius:16px;padding:16px 16px 18px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-size:26px;font-weight:800;letter-spacing:.2px}
+.badge{color:var(--mut);font-size:13px;line-height:1;opacity:.95}
+.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:10px}
+.tile{background:var(--tile);border-radius:12px;padding:12px;text-align:center;min-height:78px}
+.tile .v{font-size:22px;font-weight:800;margin-top:4px}
+
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.btn{border:0;color:#fff;padding:10px 14px;border-radius:12px;cursor:pointer;
+     font-weight:800;min-width:98px;font-size:15px;transition:transform .02s ease}
+.btn:active{transform:translateY(1px)}
+.btn-blue{background:var(--blue)}
+.btn-gray{background:var(--gray)}
+.btn-green{background:var(--green)}
+.btn-dim{background:#1b2236}
+
 .small{font-size:12px;color:var(--mut)}
+.hr{height:1px;background:var(--line);margin:14px 0}
+.box{background:var(--tile);border-radius:12px;padding:12px;margin-top:10px}
+
+select,input{background:var(--tile);color:var(--txt);border:1px solid var(--line);
+             border-radius:10px;padding:10px;min-height:44px}
+select{min-width:260px;flex:1}
+input[type="password"]{min-width:220px;flex:1}
+
+#wifi{min-height:18px}
+#mini{padding-top:2px}
 </style>
 </head>
 <body>
-<div class="wrap"><div class="card">
-  <h1>ESP32 센서보드 <span id="conn" class="badge">브로커 연결 중…</span></h1>
-  <div class="grid">
-    <div class="tile"><div>AHT25 온도</div><div id="aht_t" class="v">--.- °C</div></div>
-    <div class="tile"><div>AHT25 습도</div><div id="aht_h" class="v">-- %</div></div>
-    <div class="tile"><div>SCD42 온도</div><div id="scd_t" class="v">--.- °C</div></div>
-    <div class="tile"><div>SCD42 습도</div><div id="scd_h" class="v">-- %</div></div>
-    <div class="tile"><div>CO₂</div><div id="co2" class="v">---- ppm</div></div>
-  </div>
+<div class="wrap">
+  <div class="card">
 
-  <div class="row">
-    <button id="ledOn"  class="btn on">LED ON</button>
-    <button id="ledOff" class="btn off">LED OFF</button>
-    <span id="ledStat" class="badge">LED: -</span>
-  </div>
+    <div class="header">
+      <h1>ESP32 센서보드</h1>
+      <span id="conn" class="badge">브로커 연결 중…</span>
+    </div>
 
-  <div class="hr"></div>
+    <div class="grid">
+      <div class="tile"><div>AHT25 온도</div><div id="aht_t" class="v">--.- °C</div></div>
+      <div class="tile"><div>AHT25 습도</div><div id="aht_h" class="v">-- %</div></div>
+      <div class="tile"><div>SCD42 온도</div><div id="scd_t" class="v">--.- °C</div></div>
+      <div class="tile"><div>SCD42 습도</div><div id="scd_h" class="v">-- %</div></div>
+      <div class="tile"><div>CO₂</div><div id="co2" class="v">---- ppm</div></div>
+    </div>
 
-  <div class="box">
-    <div class="row">
-      <button id="scan" class="btn on">AP 스캔</button>
-      <select id="aplist" style="min-width:260px"></select>
-      <input id="pw" type="password" placeholder="비밀번호" style="min-width:200px"/>
-      <button id="connect" class="btn on">연결</button>
-      <button id="status" class="btn off">상태확인</button>
+    <div class="row" style="margin-top:14px">
+      <button id="ledOn"  class="btn btn-gray">LED ON</button>
+      <button id="ledOff" class="btn btn-gray">LED OFF</button>
+      <span id="ledStat" class="badge" style="margin-left:4px">LED: -</span>
     </div>
-    <div class="row" style="margin-top:6px">
-      <span id="wifi" class="badge">미확인</span>
-    </div>
-    <div class="small" style="margin-top:8px">
-      ※ 최초 설정은 장치 SoftAP(ESP32-Setup / 192.168.4.1)에서 완료하세요. 이후에는 본 페이지에서 Wi-Fi 변경 가능(명령은 MQTT로 전달).
-    </div>
-  </div>
 
-  <div class="box">
-    <div id="mini" class="small">
-      AHT25: --.- °C | -- % · SCD42: --.- °C | -- % · CO₂: ---- ppm · RSSI: -- dBm
+    <div class="hr"></div>
+
+    <div class="box">
+      <div class="row">
+        <button id="scan" class="btn btn-blue" style="min-width:100px">AP 스캔</button>
+        <select id="aplist" aria-label="AP 목록"></select>
+        <input id="pw" type="password" placeholder="비밀번호" aria-label="비밀번호"/>
+        <button id="connect" class="btn btn-blue" style="min-width:92px">연결</button>
+        <button id="status" class="btn btn-gray" style="min-width:92px">상태확인</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <span id="wifi" class="badge"></span>
+      </div>
+      <div class="small" style="margin-top:6px">
+        ※ 최초 설정은 장치 SoftAP(ESP32-Setup / 192.168.4.1)에서 완료하세요. 이후에는 본 페이지에서 Wi-Fi 변경 가능(명령은 MQTT로 전달).
+      </div>
     </div>
+
+    <div class="box">
+      <div id="mini" class="small">AHT25: --.- °C | -- % · SCD42: --.- °C | -- % · CO₂: ---- ppm · RSSI: -- dBm</div>
+    </div>
+
   </div>
-</div></div>
+</div>
 
 <script>
 /* ===== MQTT (HiveMQ Cloud WSS) ===== */
@@ -79,16 +108,16 @@ const options = {
 const client = mqtt.connect(brokerUrl, options);
 
 /* ===== Elements ===== */
-const qs = s => document.querySelector(s);
+const $ = s => document.querySelector(s);
 const el = {
-  conn: qs('#conn'),
-  aht_t: qs('#aht_t'), aht_h: qs('#aht_h'),
-  scd_t: qs('#scd_t'), scd_h: qs('#scd_h'),
-  co2:   qs('#co2'),
-  ledOn: qs('#ledOn'), ledOff: qs('#ledOff'), ledStat: qs('#ledStat'),
-  scan: qs('#scan'), aplist: qs('#aplist'), pw: qs('#pw'),
-  connect: qs('#connect'), status: qs('#status'),
-  wifi: qs('#wifi'), mini: qs('#mini')
+  conn: $('#conn'),
+  aht_t: $('#aht_t'), aht_h: $('#aht_h'),
+  scd_t: $('#scd_t'), scd_h: $('#scd_h'),
+  co2:   $('#co2'),
+  ledOn: $('#ledOn'), ledOff: $('#ledOff'), ledStat: $('#ledStat'),
+  scan: $('#scan'), aplist: $('#aplist'), pw: $('#pw'),
+  connect: $('#connect'), status: $('#status'),
+  wifi: $('#wifi'), mini: $('#mini')
 };
 
 /* ===== MQTT Handlers ===== */
@@ -97,54 +126,63 @@ client.on('connect', () => {
   client.subscribe('esp32/status');
   client.subscribe('esp32/resp/wifi_status');
   client.subscribe('esp32/resp/wifi_scan');
-  // 부팅 시 상태 요청
-  client.publish('esp32/cmd/wifi_status', '');
+  client.publish('esp32/cmd/wifi_status', ''); // 초기 상태 요청
 });
 client.on('reconnect', ()=> el.conn.textContent='브로커 재연결 중…');
 client.on('offline',  ()=> el.conn.textContent='브로커 오프라인');
-client.on('error', err=> el.conn.textContent='에러: '+err.message);
+client.on('error',    err=> el.conn.textContent='에러: '+err.message);
 
 client.on('message', (topic, payload) => {
   const text = new TextDecoder().decode(payload);
   try{
     if(topic==='esp32/status'){
-      const s = JSON.parse(text); renderSensor(s);
+      renderSensor(JSON.parse(text));
     }else if(topic==='esp32/resp/wifi_status'){
       const s = JSON.parse(text);
       el.wifi.textContent = s.connected ? `연결됨: ${s.ssid} (${s.ip})` : '미연결';
     }else if(topic==='esp32/resp/wifi_scan'){
       const arr = JSON.parse(text);
       el.aplist.innerHTML = '';
-      arr.sort((a,b)=>b.rssi-a.rssi).forEach(ap=>{
-        const o=document.createElement('option');
-        o.value=ap.ssid; o.textContent=`${ap.ssid} (${ap.rssi} dBm${ap.enc?' · 🔒':''})`;
+      if(arr.length===0){
+        const o=document.createElement('option'); o.textContent='검색 결과 없음';
         el.aplist.appendChild(o);
-      });
-      if(!arr.length){
-        const o=document.createElement('option');
-        o.textContent='검색 결과 없음'; el.aplist.appendChild(o);
+      }else{
+        arr.sort((a,b)=>b.rssi-a.rssi).forEach(ap=>{
+          const o=document.createElement('option');
+          o.value=ap.ssid;
+          o.textContent=`${ap.ssid} (${ap.rssi} dBm${ap.enc?' · 🔒':''})`;
+          el.aplist.appendChild(o);
+        });
       }
     }
   }catch(_){}
 });
 
 /* ===== UI Logic ===== */
-function n(v){return Number(v);}
+function num(v){ return Number(v); }
+
+function setLedButtonsState(isOn){
+  // ON이면 ON버튼을 녹색, OFF버튼 회색 / OFF이면 반대로
+  el.ledOn.className  = 'btn ' + (isOn ? 'btn-green' : 'btn-gray');
+  el.ledOff.className = 'btn ' + (!isOn ? 'btn-green' : 'btn-gray');
+}
+
 function renderSensor(s){
-  if(!Number.isNaN(n(s.aht_t))) el.aht_t.textContent=n(s.aht_t).toFixed(1)+' °C';
-  if(!Number.isNaN(n(s.aht_h))) el.aht_h.textContent=Math.round(n(s.aht_h))+' %';
-  if(!Number.isNaN(n(s.scd_t))) el.scd_t.textContent=n(s.scd_t).toFixed(1)+' °C';
-  if(!Number.isNaN(n(s.scd_h))) el.scd_h.textContent=Math.round(n(s.scd_h))+' %';
-  if(!Number.isNaN(n(s.co2)))   el.co2.textContent=Math.round(n(s.co2))+' ppm';
+  if(!Number.isNaN(num(s.aht_t))) el.aht_t.textContent=num(s.aht_t).toFixed(1)+' °C';
+  if(!Number.isNaN(num(s.aht_h))) el.aht_h.textContent=Math.round(num(s.aht_h))+' %';
+  if(!Number.isNaN(num(s.scd_t))) el.scd_t.textContent=num(s.scd_t).toFixed(1)+' °C';
+  if(!Number.isNaN(num(s.scd_h))) el.scd_h.textContent=Math.round(num(s.scd_h))+' %';
+  if(!Number.isNaN(num(s.co2)))   el.co2.textContent=Math.round(num(s.co2))+' ppm';
   if(typeof s.led!=='undefined'){
-    const on=!!s.led; el.ledStat.textContent='LED: '+(on?'ON':'OFF');
-    el.ledOn.classList.toggle('active',on); el.ledOn.classList.toggle('dim',!on);
-    el.ledOff.classList.toggle('active',!on); el.ledOff.classList.toggle('dim',on);
+    const on=!!s.led;
+    el.ledStat.textContent='LED: '+(on?'ON':'OFF');
+    setLedButtonsState(on);
   }
   const rssi = (typeof s.rssi!=='undefined') ? s.rssi : '--';
-  el.mini.textContent = `AHT25: ${el.aht_t.textContent} | ${el.aht_h.textContent} · `
-                      + `SCD42: ${el.scd_t.textContent} | ${el.scd_h.textContent} · `
-                      + `CO₂: ${el.co2.textContent} · RSSI: ${rssi} dBm`;
+  el.mini.textContent =
+    `AHT25: ${el.aht_t.textContent} | ${el.aht_h.textContent} · `+
+    `SCD42: ${el.scd_t.textContent} | ${el.scd_h.textContent} · `+
+    `CO₂: ${el.co2.textContent} · RSSI: ${rssi} dBm`;
 }
 
 /* LED */
@@ -152,15 +190,26 @@ el.ledOn.onclick  = ()=> client.publish('esp32/led','on');
 el.ledOff.onclick = ()=> client.publish('esp32/led','off');
 
 /* Wi-Fi */
-el.scan.onclick   = ()=> client.publish('esp32/cmd/wifi_scan','');
+el.scan.onclick   = ()=>{
+  el.wifi.textContent = '스캔 중…';
+  el.aplist.innerHTML = '';
+  const o=document.createElement('option'); o.textContent='스캔 중…'; el.aplist.appendChild(o);
+  client.publish('esp32/cmd/wifi_scan','');
+};
 el.status.onclick = ()=> client.publish('esp32/cmd/wifi_status','');
+
 el.connect.onclick= ()=>{
   const ssid = el.aplist.value || prompt('SSID 직접 입력');
   const pass = el.pw.value || '';
   if(!ssid){ alert('SSID를 선택/입력하세요.'); return; }
   client.publish('esp32/cmd/wifi_connect', JSON.stringify({ssid,pass}));
+  el.wifi.textContent = '연결 시도 중…';
   setTimeout(()=> client.publish('esp32/cmd/wifi_status',''), 2500);
 };
+// Enter키로도 연결
+el.pw.addEventListener('keydown', (e)=>{
+  if(e.key==='Enter'){ el.connect.click(); }
+});
 </script>
 </body>
 </html>
