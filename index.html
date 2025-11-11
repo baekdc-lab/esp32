@@ -5,18 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>ESP32 센서 대시보드</title>
 <style>
-/* (스타일은 이전과 동일 — 생략 없이 포함) */
 :root{--bg:#0b1020;--card:#131a2b;--txt:#e8eefc;--mut:#9fb2d7;--line:#22314f;--btn-bg:#1b2b4a;--btn-border:#2c3e63}
 :root.light{--bg:#f5f7fa;--card:#ffffff;--txt:#0b1020;--mut:#5a6b8a;--line:#ccd4e0;--btn-bg:#e4e8ef;--btn-border:#b0bacb}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif}
-.wrap{max-width:900px;margin:20px auto;padding:0 12px}
-.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif}
+.wrap{max-width:900px;margin:20px auto;padding:0 12px}.card{background:var(--card);border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
-.mut{color:var(--mut);margin:0 0 8px}
-.mut.small{font-size:14px}
-hr{border:0;border-top:1px solid var(--line);margin:14px 0}
-.theme-toggle{cursor:pointer;font-size:22px;user-select:none}
+.mut{color:var(--mut);margin:0 0 8px}.mut.small{font-size:14px}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}.theme-toggle{cursor:pointer;font-size:22px;user-select:none}
 
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
 .tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px}
@@ -81,6 +76,7 @@ input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);ba
 .adv.show{display:block}
 .adv .row{display:flex;gap:6px}
 .adv input{flex:1}
+.warn{background:#452d2d;border:1px solid #8b4b4b;color:#ffdcdc;padding:10px;border-radius:10px;margin:10px 0;display:none}
 </style>
 </head>
 <body>
@@ -94,6 +90,12 @@ input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);ba
   </h1>
   <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
   <p class="mut small">MQTT 연결 OK</p>
+
+  <div id="httpsWarn" class="warn">
+    이 페이지가 <b>HTTPS</b>로 열려 있으면 장치(<b>HTTP</b>) 호출이 브라우저에서 차단됩니다.
+    <br>1) 이 파일을 <b>로컬 HTTP</b>로 열거나(예: <code>python -m http.server 8080</code>)
+    <br>2) 장치 주소를 <b>수동 입력</b> 후 사용하세요(아래 Wi-Fi 설정 → 고급).
+  </div>
 
   <div class="grid">
     <div class="tile"><div>AHT25 온도</div><div id="aht_t" class="v">--.- °C</div></div>
@@ -192,22 +194,23 @@ input{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);ba
 <script>
 const $=s=>document.querySelector(s);
 
-/* ===== 타임아웃 fetch ===== */
-async function fetchTO(url,opt={},ms=2000){
-  const c=new AbortController(); const t=setTimeout(()=>c.abort(),ms);
-  try{ return await fetch(url,{...opt,signal:c.signal}); } finally{ clearTimeout(t); }
-}
+/* HTTPS 혼합콘텐츠 경고 */
+(function(){
+  const warn=document.getElementById('httpsWarn');
+  warn.style.display = location.protocol==='https:' ? 'block' : 'none';
+})();
 
-/* ===== 테마 ===== */
+/* 테마 */
 const themeToggle=$('#themeToggle');
 function applyTheme(t){document.documentElement.classList.toggle('light',t==='light');themeToggle.textContent=(t==='light')?'☀️':'🌙';renderAllCharts();}
 applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
 
-/* ===== 후보 주소 ===== */
+/* 후보 주소 + 공용 호출 */
 const LS_LAST_STATUS='esp32_last_status', LS_BASE='base';
 let BASE=(localStorage.getItem(LS_BASE)||'').replace(/\/$/,'');
 const manual=()=>($('#baseInput').value||'').trim().replace(/\/$/,'');
+
 function candidates(){
   const arr=[];
   if(BASE) arr.push(BASE);
@@ -216,26 +219,29 @@ function candidates(){
   return [...new Set(arr)];
 }
 
-/* ===== "탐색 없이" 모든 후보로 동시 시도 ===== */
+async function fetchTO(url,opt={},ms=2000){
+  const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),ms);
+  try{ return await fetch(url,{...opt,signal:ctl.signal}); } finally{ clearTimeout(t); }
+}
 async function anyJson(path,opt={},timeout=2000){
   const urls=candidates().map(b=> b+(path.startsWith('/')?path:('/'+path)));
   const tasks=urls.map(async u=>{
     try{ const r=await fetchTO(u,{...opt,mode:'cors',cache:'no-store'},timeout); if(r.ok) return {ok:true,url:u,json:await r.json()}; }catch(_){}
     return {ok:false};
   });
-  const res=await Promise.race(tasks.map(p=>p.then(x=>x.ok?x:Promise.reject(x))));
-  // 성공: BASE 갱신
-  if(res && res.ok){ BASE=new URL(res.url).origin; localStorage.setItem(LS_BASE,BASE); return res.json; }
+  const results=await Promise.all(tasks);
+  const ok=results.find(x=>x.ok);
+  if(ok){ BASE=new URL(ok.url).origin; localStorage.setItem(LS_BASE,BASE); return ok.json; }
   throw new Error('all failed');
 }
 async function anyPostJson(path,bodyObj,timeout=3000){
   return await anyJson(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(bodyObj)},timeout);
 }
 
-/* ===== 캐시 선표시 ===== */
+/* 캐시 선표시 */
 (function(){const raw=localStorage.getItem(LS_LAST_STATUS); if(!raw) return; try{applyStatus(JSON.parse(raw),true);}catch(_){}})();
 
-/* ===== 표시/LED ===== */
+/* LED/UI */
 function syncButtons(on){const bon=$('#on'),boff=$('#off');bon.classList.remove('active','dim');boff.classList.remove('active','dim');if(on){bon.classList.add('active');boff.classList.add('dim');}else{boff.classList.add('active');bon.classList.add('dim');}}
 function toBool(v){if(typeof v==='boolean')return v;if(typeof v==='number')return v!==0;if(typeof v==='string'){const t=v.trim().toLowerCase();return t==='1'||t==='on'||t==='true';}return !!v;}
 function applyStatus(s,fromCache=false){
@@ -254,7 +260,7 @@ function applyStatus(s,fromCache=false){
   $('#ts').textContent=fmtNow();
 }
 
-/* ===== 테이블/그래프 ===== */
+/* 테이블/그래프 토글 */
 const secTable=$('#tableSection'), secGraph=$('#graphSection');
 $('#toggleTable').onclick=()=>{const open=secTable.classList.toggle('open');$('#toggleTable').textContent=open?'📋 테이블 숨기기':'📋 테이블 보기';if(open && !$('#logtbl').children.length) loadHistory60();};
 $('#toggleGraph').onclick=()=>{const open=secGraph.classList.toggle('open');$('#toggleGraph').textContent=open?'📊 그래프 숨기기':'📊 그래프 보기';if(open) renderAllCharts();};
@@ -283,7 +289,7 @@ function addRowTop(o,ts){
   while(tb.rows.length>60) tb.deleteRow(tb.rows.length-1);
 }
 
-/* ===== 차트 ===== */
+/* 간단 차트(캔버스) */
 let histBuf=[]; const dpr=()=>window.devicePixelRatio||1;
 function prepCanvas(c){const r=c.getBoundingClientRect();const w=Math.max(1,r.width),h=Math.max(1,r.height);c.width=Math.floor(w*dpr());c.height=Math.floor(h*dpr());const ctx=c.getContext('2d');ctx.setTransform(dpr(),0,0,dpr(),0,0);return ctx;}
 function drawChart(c,series){
@@ -297,8 +303,7 @@ function drawChart(c,series){
   for(let g=0;g<=4;g++){const y=padT+plotH*g/4;ctx.moveTo(padL,y);ctx.lineTo(padL+plotW,y);}
   for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);}
   ctx.stroke();
-  ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';
-  ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';
+  ctx.fillStyle=light?'#5a6b8a':'#9fb2d7';ctx.font='12px system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,sans-serif';
   ctx.textAlign='center';ctx.textBaseline='top';
   for(let m=0;m<=60;m+=10){const x=padL+plotW*(m/60);ctx.fillText((60-m)==0?'지금':`-${60-m}m`,x,padT+plotH+6);}
   const vals=[];series.forEach(a=>a.forEach(v=>{if(Number.isFinite(v))vals.push(v);}));
@@ -329,7 +334,7 @@ function renderAllCharts(){
   drawChart(document.getElementById('chCO2'), [co2]);
 }
 
-/* ===== 1분 평균 ===== */
+/* 1분 평균 테이블 */
 let minuteKey=null, minuteSamples=[];
 function pushMinuteSample(s, now){
   const key=now.getHours()*60+now.getMinutes();
@@ -345,7 +350,7 @@ function pushMinuteSample(s, now){
   minuteSamples.push({aht_t:+s.aht_t,aht_h:+s.aht_h,scd_t:+s.scd_t,scd_h:+s.scd_h,co2:+s.co2,led:toBool(s.led)});
 }
 
-/* ===== Wi-Fi 모달 ===== */
+/* Wi-Fi 모달 */
 const wifiBtn=$('#wifiBtn'), wifiModal=$('#wifiModal'), wifiClose=$('#wifiClose');
 const scanBtn=$('#scanBtn'), apList=$('#apList'), wifiStat=$('#wifiStat');
 const ssidInp=$('#ssid'), passInp=$('#pass'), connectBtn=$('#connectBtn'), forgetBtn=$('#forgetBtn');
@@ -406,7 +411,7 @@ forgetBtn.onclick=async()=>{
   catch(_){ alert('삭제 실패(장치 미발견)'); }
 };
 
-/* ===== 폴링 ===== */
+/* 폴링/표시 */
 const fastMs=3000;
 const fmtNow=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;};
 async function refreshFast(){try{const s=await anyJson('/api/status');applyStatus(s,false);pushMinuteSample(s,new Date());}catch(_){ }}
