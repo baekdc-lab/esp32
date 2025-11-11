@@ -30,17 +30,21 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
 .collapsible{max-height:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;opacity:0}
 .collapsible.open{max-height:2000px;opacity:1}
-.tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh}
+
+/* ===== 테이블 ===== */
+.tablewrap{overflow:hidden;background:#0f1526;border-radius:14px;padding:0 4px 4px 0;max-height:50vh}
 :root.light .tablewrap{background:#eef1f7}
-table{border-collapse:collapse;width:auto;min-width:100%}
-thead th{position:sticky;top:0;background:#12203a}
+table{border-collapse:collapse;width:100%;table-layout:fixed}
+thead th{position:sticky;top:0;background:#12203a;z-index:1}
 :root.light thead th{background:#d6deec}
-th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 th:first-child,td:first-child{text-align:center}
-th:nth-child(1){width:54px}
-th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5){width:63px}
-th:nth-child(6){width:72px}
-th:nth-child(7){width:52px}
+th:nth-child(1){width:56px}
+th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5){width:70px}
+th:nth-child(6){width:78px}
+th:nth-child(7){width:58px}
+
+/* ===== 차트 ===== */
 .charts{margin-top:14px;display:grid;grid-template-columns:1fr;gap:12px}
 .chart{background:#0f1526;border-radius:12px;padding:10px}
 :root.light .chart{background:#eef1f7}
@@ -55,7 +59,18 @@ th:nth-child(7){width:52px}
 .bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;color:var(--mut)}
 #mini{white-space:pre-line;font-size:12px;margin:0}
 .timeText{font-size:12px;white-space:nowrap;margin:0 2px 0 0}
-#foot{display:none;}
+
+/* ===== 모바일 최적화: 좌우 여백 축소 & 글자/패딩 감소 ===== */
+@media (max-width: 480px){
+  .wrap{padding:0 8px}
+  .btn.toggle{min-width:110px;padding:10px 12px}
+  .tablewrap{padding:0;border-radius:12px}
+  th,td{padding:5px 6px;font-size:12px}
+  th:nth-child(1){width:50px}
+  th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5){width:64px}
+  th:nth-child(6){width:70px}
+  th:nth-child(7){width:52px}
+}
 </style>
 </head>
 <body>
@@ -108,7 +123,6 @@ th:nth-child(7){width:52px}
         </div>
         <div class="canvas-wrap"><canvas id="chTemp"></canvas></div>
       </div>
-
       <div class="chart">
         <h3>습도 (%) — 최근 60분</h3>
         <div class="legend">
@@ -117,7 +131,6 @@ th:nth-child(7){width:52px}
         </div>
         <div class="canvas-wrap"><canvas id="chHum"></canvas></div>
       </div>
-
       <div class="chart">
         <h3>CO₂ (ppm) — 최근 60분</h3>
         <div class="legend">
@@ -147,8 +160,8 @@ function applyTheme(t){
 applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.onclick=()=>{ const t=document.documentElement.classList.contains('light')?'dark':'light'; applyTheme(t); localStorage.setItem('theme',t); };
 
-/* ===== 캐시 불러와 즉시 그리기(깜빡임 제거) ===== */
-let histBuf = JSON.parse(localStorage.getItem('histBuf')||'[]');   // [{aht_t,aht_h,scd_t,scd_h,co2}]
+/* ===== 캐시 빠른 렌더 ===== */
+let histBuf = JSON.parse(localStorage.getItem('histBuf')||'[]');
 let lastStatus = JSON.parse(localStorage.getItem('lastStatus')||'null');
 
 const el = {
@@ -240,15 +253,8 @@ function drawChart(c, series){
   });
 }
 
-/* ===== 캐시 즉시 적용(초기 깜빡임 제거) ===== */
+/* ===== 캐시 즉시 반영 ===== */
 if (lastStatus) { renderStatus(lastStatus); }
-if (histBuf.length && $('#tableSection').classList.contains('open')) {
-  // 표는 열렸을 때만 즉시 그림
-  histBuf.slice().reverse().forEach((r,i)=>{
-    const ts=new Date(); ts.setMinutes(ts.getMinutes()-i);
-    addRowTop(r, ts);
-  });
-}
 
 /* ===== MQTT ===== */
 const brokerUrl = "wss://6c56aefe0ddb4d57977c735f5070abe8.s1.eu.hivemq.cloud:8884/mqtt";
@@ -263,24 +269,19 @@ client.on('error',    e => el.mqttState.textContent='에러: '+e.message);
 client.on('message', (topic,payload)=>{
   if(topic!=='esp32/status') return;
   const s = JSON.parse(new TextDecoder().decode(payload));
-  renderStatus(s);                    // 화면 반영
-  // 캐시(마지막 상태)
+  renderStatus(s);
   localStorage.setItem('lastStatus', JSON.stringify(s));
-  // 1분 평균 누적 및 테이블/그래프 업데이트
   pushMinuteSample(s, new Date());
 });
 
-/* ===== LED 제어: 즉시 색상 변환(낙관적 UI) ===== */
+/* ===== LED 제어(낙관적 UI) ===== */
 $('#on').onclick  = ()=> { syncButtons(true);  client.publish('esp32/led','on');  };
 $('#off').onclick = ()=> { syncButtons(false); client.publish('esp32/led','off'); };
 
-/* ===== 표/그래프 토글 ===== */
+/* ===== 토글 ===== */
 const secTable=$('#tableSection'), secGraph=$('#graphSection');
 $('#toggleTable').onclick=()=>{ const o=secTable.classList.toggle('open'); $('#toggleTable').textContent=o?'📋 테이블 숨기기':'📋 테이블 보기';
-  if(o && histBuf.length){ // 열릴 때 즉시 표 채우기
-    $('#logtbl').innerHTML='';
-    histBuf.slice().reverse().forEach((r,i)=>{ const ts=new Date(); ts.setMinutes(ts.getMinutes()-i); addRowTop(r,ts); });
-  }
+  if(o && histBuf.length){ $('#logtbl').innerHTML=''; histBuf.slice().reverse().forEach((r,i)=>{ const ts=new Date(); ts.setMinutes(ts.getMinutes()-i); addRowTop(r,ts); }); }
 };
 $('#toggleGraph').onclick=()=>{ const o=secGraph.classList.toggle('open'); $('#toggleGraph').textContent=o?'📊 그래프 숨기기':'📊 그래프 보기'; if(o) renderAllCharts(); };
 
@@ -294,7 +295,7 @@ function pushMinuteSample(s, now){
     addRowTop(row, new Date(now.getFullYear(),now.getMonth(),now.getDate(),Math.floor(minuteKey/60),minuteKey%60,0,0));
     histBuf.push({aht_t:row.aht_t, aht_h:row.aht_h, scd_t:row.scd_t, scd_h:row.scd_h, co2:row.co2});
     if(histBuf.length>60) histBuf.shift();
-    localStorage.setItem('histBuf', JSON.stringify(histBuf));   // 그래프/표 캐시
+    localStorage.setItem('histBuf', JSON.stringify(histBuf));
     minuteSamples=[];
     renderAllCharts();
   }
@@ -302,7 +303,7 @@ function pushMinuteSample(s, now){
   minuteSamples.push({ aht_t:+s.aht_t, aht_h:+s.aht_h, scd_t:+s.scd_t, scd_h:+s.scd_h, co2:+s.co2, led:toBool(s.led) });
 }
 
-/* ===== 차트 도우미 ===== */
+/* ===== 시각 텍스트 ===== */
 setInterval(()=>{ el.ts.textContent=fmtNow(); },1000);
 </script>
 </body>
