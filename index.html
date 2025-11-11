@@ -17,22 +17,25 @@ h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:sp
 .mut.small{font-size:14px}
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .theme-toggle{cursor:pointer;font-size:22px;user-select:none}
+
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
 .tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px}
 :root.light .tile{background:#eef1f7}
 .v{font-size:22px;font-weight:800;margin-top:4px}
+
 .led{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
-.btn{border:0;color:#fff;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:800;min-width:98px;font-size:15px;
-     transition:background-color .08s ease, transform .08s ease}
+.btn{border:0;color:#fff;padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:800;min-width:98px;font-size:15px;transition:background-color .08s ease, transform .08s ease}
 .btn.on{background:#2d6bff;} .btn.off{background:#32405e;} .btn.active{background:#00cc66;} .btn.dim{background:#1b2236;}
 .led-status{font-size:13px;color:var(--mut);position:relative;top:4px}
+
 .btn.toggle{background:var(--btn-bg);border:1px solid var(--btn-border);color:var(--txt);min-width:120px}
 .toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+
 .collapsible{max-height:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;opacity:0}
 .collapsible.open{max-height:2000px;opacity:1}
 
 /* ===== 테이블 ===== */
-.tablewrap{overflow:hidden;background:#0f1526;border-radius:14px;padding:0 4px 4px 0;max-height:50vh}
+.tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 4px 4px 0;max-height:50vh}
 :root.light .tablewrap{background:#eef1f7}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
 thead th{position:sticky;top:0;background:#12203a;z-index:1}
@@ -56,15 +59,16 @@ th:nth-child(7){width:58px}
 .swatch{display:inline-block;width:16px;height:6px;border-radius:3px}
 .swatch.blue{background:#7aa0ff}
 .swatch.orange{background:#ff9a7a}
+
 .bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;color:var(--mut)}
 #mini{white-space:pre-line;font-size:12px;margin:0}
 .timeText{font-size:12px;white-space:nowrap;margin:0 2px 0 0}
 
-/* ===== 모바일 최적화: 좌우 여백 축소 & 글자/패딩 감소 ===== */
+/* ===== 모바일 최적화: 세로 높이/좌우 여백 ===== */
 @media (max-width: 480px){
   .wrap{padding:0 8px}
   .btn.toggle{min-width:110px;padding:10px 12px}
-  .tablewrap{padding:0;border-radius:12px}
+  .tablewrap{padding:0;border-radius:12px;max-height:62vh}
   th,td{padding:5px 6px;font-size:12px}
   th:nth-child(1){width:50px}
   th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5){width:64px}
@@ -161,7 +165,7 @@ applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.onclick=()=>{ const t=document.documentElement.classList.contains('light')?'dark':'light'; applyTheme(t); localStorage.setItem('theme',t); };
 
 /* ===== 캐시 빠른 렌더 ===== */
-let histBuf = JSON.parse(localStorage.getItem('histBuf')||'[]');
+let histBuf = JSON.parse(localStorage.getItem('histBuf')||'[]'); // 오래된→최신 순으로 저장 가정
 let lastStatus = JSON.parse(localStorage.getItem('lastStatus')||'null');
 
 const el = {
@@ -208,6 +212,8 @@ function addRowTop(o,ts){
   if(tb.firstChild) tb.insertBefore(tr,tb.firstChild); else tb.appendChild(tr);
   while(tb.rows.length>60) tb.deleteRow(tb.rows.length-1);
 }
+
+/* === 그래프 === */
 function renderAllCharts(){
   if(!$('#graphSection').classList.contains('open')) return;
   const aht_t=histBuf.map(r=>r.aht_t??NaN), scd_t=histBuf.map(r=>r.scd_t??NaN),
@@ -281,18 +287,28 @@ $('#off').onclick = ()=> { syncButtons(false); client.publish('esp32/led','off')
 /* ===== 토글 ===== */
 const secTable=$('#tableSection'), secGraph=$('#graphSection');
 $('#toggleTable').onclick=()=>{ const o=secTable.classList.toggle('open'); $('#toggleTable').textContent=o?'📋 테이블 숨기기':'📋 테이블 보기';
-  if(o && histBuf.length){ $('#logtbl').innerHTML=''; histBuf.slice().reverse().forEach((r,i)=>{ const ts=new Date(); ts.setMinutes(ts.getMinutes()-i); addRowTop(r,ts); }); }
+  if(o && histBuf.length){
+    // 오래된 → 최신 순서로 돌면서 addRowTop(맨 위 삽입) ⇒ 최종적으로 "최신이 맨 위"
+    $('#logtbl').innerHTML='';
+    for(let i=0;i<histBuf.length;i++){
+      const r = histBuf[i];
+      const ts=new Date(); ts.setMinutes(ts.getMinutes()-(histBuf.length-1-i));
+      addRowTop(r,ts);
+    }
+  }
 };
 $('#toggleGraph').onclick=()=>{ const o=secGraph.classList.toggle('open'); $('#toggleGraph').textContent=o?'📊 그래프 숨기기':'📊 그래프 보기'; if(o) renderAllCharts(); };
 
-/* ===== 1분 평균 버퍼 ===== */
+/* ===== 1분 평균 버퍼 & 최대 60분 보존 ===== */
 let minuteKey=null, minuteSamples=[];
 function pushMinuteSample(s, now){
   const key=now.getHours()*60+now.getMinutes();
   if(minuteKey!==null && key!==minuteKey && minuteSamples.length){
     const avg=k=>{ const v=minuteSamples.map(x=>+x[k]).filter(Number.isFinite); return v.length?v.reduce((a,b)=>a+b,0)/v.length:NaN; };
     const row={ aht_t:avg('aht_t'), aht_h:avg('aht_h'), scd_t:avg('scd_t'), scd_h:avg('scd_h'), co2:avg('co2'), led:minuteSamples.at(-1).led };
+    // 표: 새 분이 시작될 때 이전 분을 맨 위에 추가
     addRowTop(row, new Date(now.getFullYear(),now.getMonth(),now.getDate(),Math.floor(minuteKey/60),minuteKey%60,0,0));
+    // 히스토리: 오래된→최신 배열 유지 (길이 60 제한)
     histBuf.push({aht_t:row.aht_t, aht_h:row.aht_h, scd_t:row.scd_t, scd_h:row.scd_h, co2:row.co2});
     if(histBuf.length>60) histBuf.shift();
     localStorage.setItem('histBuf', JSON.stringify(histBuf));
