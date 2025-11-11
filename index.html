@@ -18,7 +18,7 @@ h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:sp
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .theme-toggle{cursor:pointer;font-size:22px;user-select:none}
 
-/* 카드/지표 */
+/* KPI 타일 */
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
 .tile{background:#0f1526;border-radius:12px;padding:12px;text-align:center;min-height:76px}
 :root.light .tile{background:#eef1f7}
@@ -41,18 +41,43 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .collapsible{max-height:0;overflow:hidden;transition:max-height .25s ease,opacity .2s ease;opacity:0}
 .collapsible.open{max-height:2000px;opacity:1}
 
-/* ===== 테이블 ===== */
-.tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 4px 4px 0;max-height:50vh}
+/* ===== 테이블 (폰트/배치만 수정) ===== */
+.tablewrap{overflow:auto;background:#0f1526;border-radius:14px;padding:0 6px 6px 0;max-height:50vh}
 :root.light .tablewrap{background:#eef1f7}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
 thead th{position:sticky;top:0;background:#12203a;z-index:1}
 :root.light thead th{background:#d6deec}
-th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+th,td{
+  padding:6px 8px;
+  border-bottom:1px solid var(--line);
+  text-align:right;
+  font-size:12.5px;                 /* 데스크톱: 살짝 작게 */
+  white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+  font-variant-numeric:tabular-nums;
+}
 th:first-child,td:first-child{text-align:center}
-th:nth-child(1){width:56px}
-th:nth-child(2),th:nth-child(3),th:nth-child(4),th:nth-child(5){width:70px}
-th:nth-child(6){width:78px}
-th:nth-child(7){width:58px}
+
+/* 데스크톱(넓은 화면) 기본 폭 */
+th:nth-child(1),td:nth-child(1){width:60px}   /* 시간 */
+th:nth-child(2),td:nth-child(2){width:72px}   /* AHT °C */
+th:nth-child(3),td:nth-child(3){width:70px}   /* AHT %  */
+th:nth-child(4),td:nth-child(4){width:72px}   /* SCD °C */
+th:nth-child(5),td:nth-child(5){width:62px}   /* SCD %  */
+th:nth-child(6),td:nth-child(6){width:92px}   /* CO₂    */
+th:nth-child(7),td:nth-child(7){width:64px;text-align:center} /* LED */
+
+/* 모바일: 7칼럼 합계 100% + 폰트/패딩 업(가독성) */
+@media (max-width:480px){
+  th,td{padding:4px 4px;font-size:12px}
+  th:nth-child(1),td:nth-child(1){width:14%} /* 시간 */
+  th:nth-child(2),td:nth-child(2){width:14%} /* AHT °C */
+  th:nth-child(3),td:nth-child(3){width:14%} /* AHT %  */
+  th:nth-child(4),td:nth-child(4){width:14%} /* SCD °C */
+  th:nth-child(5),td:nth-child(5){width: 9%} /* SCD %  (더 좁힘) */
+  th:nth-child(6),td:nth-child(6){width:20%} /* CO₂    (넓힘) */
+  th:nth-child(7),td:nth-child(7){width:15%;text-align:center} /* LED */
+}
 
 /* ===== 차트 ===== */
 .charts{margin-top:14px;display:grid;grid-template-columns:1fr;gap:12px}
@@ -71,22 +96,6 @@ th:nth-child(7){width:58px}
 .bottomRow{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;color:var(--mut)}
 #mini{white-space:pre-line;font-size:12px;margin:0}
 .timeText{font-size:12px;white-space:nowrap;margin:0 2px 0 0}
-
-/* ===== 모바일: 칼럼 간격 더 축소 + 폰트/패딩 업 ===== */
-@media (max-width:480px){
-  .wrap{padding:0 8px}
-  .btn.toggle{min-width:110px;padding:10px 12px}
-  .tablewrap{padding:0;border-radius:12px;max-height:62vh;overflow:auto}
-  th,td{padding:4px 4px;font-size:12px} /* ↑ 폰트/패딩 업 */
-  /* 합계 100% (꽉 차게) */
-  th:nth-child(1),td:nth-child(1){width:14%} /* 시간 */
-  th:nth-child(2),td:nth-child(2){width:14%} /* AHT °C */
-  th:nth-child(3),td:nth-child(3){width:14%} /* AHT %  */
-  th:nth-child(4),td:nth-child(4){width:14%} /* SCD °C */
-  th:nth-child(5),td:nth-child(5){width: 9%} /* SCD %  (더 좁힘) */
-  th:nth-child(6),td:nth-child(6){width:20%} /* CO₂    (넓힘) */
-  th:nth-child(7),td:nth-child(7){width:15%;text-align:center} /* LED */
-}
 </style>
 </head>
 <body>
@@ -301,10 +310,11 @@ const secTable=$('#tableSection'), secGraph=$('#graphSection');
 $('#toggleTable').onclick=()=>{ const o=secTable.classList.toggle('open'); $('#toggleTable').textContent=o?'📋 테이블 숨기기':'📋 테이블 보기';
   if(o && histBuf.length){
     $('#logtbl').innerHTML='';
+    // 오래된→최신 순에서 addRowTop(맨 위 삽입)으로 최신이 맨 위가 되도록
     for(let i=0;i<histBuf.length;i++){
       const r = histBuf[i];
       const ts=new Date(); ts.setMinutes(ts.getMinutes()-(histBuf.length-1-i));
-      addRowTop(r,ts); // 최신이 맨 위
+      addRowTop(r,ts);
     }
   }
 };
