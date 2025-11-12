@@ -18,12 +18,23 @@ h1{margin:0 0 8px;font-size:26px;font-weight:800;display:flex;justify-content:sp
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 .theme-toggle{cursor:pointer;font-size:22px;user-select:none}
 
-/* KPI */
+/* KPI 타일 */
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:6px}
-.tile{background:var(--tile);border-radius:12px;padding:12px;text-align:center;min-height:76px}
-.v{font-size:22px;font-weight:800;margin-top:4px;line-height:1.05}
-.v .val{font-size:1em;font-weight:800}
-.v .unit{margin-left:6px;font-weight:700}
+.tile{
+  background:var(--tile);
+  border-radius:12px;
+  padding:10px 8px;
+  min-height:92px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center; /* 타일 내부 센터 정렬 */
+  text-align:center;
+}
+.tile>div:first-child{font-size:14px;font-weight:700;color:var(--mut);margin-bottom:4px}
+.v{
+  display:flex;flex-direction:column;align-items:center;justify-content:center; /* 값/단위 블록 센터 정렬 */
+  line-height:1.06;margin-top:2px;
+}
+.v .val{font-size:24px;font-weight:800}
+.v .unit{font-size:14px;font-weight:700;margin-top:2px;opacity:.9}
 
 /* LED */
 .led{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
@@ -55,9 +66,10 @@ th:nth-child(5),td:nth-child(5){width:66px}
 th:nth-child(6),td:nth-child(6){width:100px}
 th:nth-child(7),td:nth-child(7){width:66px}
 
-/* 모바일 – 단위만 작게 */
+/* 모바일 – 단위는 더 작게 */
 @media (max-width:480px){
-  .v .unit{font-size:.72em}           /* ← 단위 축소 */
+  .v .val{font-size:23px}
+  .v .unit{font-size:12px}      /* 단위 축소, 값 아래 줄 */
   thead th{padding:8px 4px 7px;font-size:14px}
   tbody td{padding:7px 4px;font-size:14px}
   th:nth-child(1),td:nth-child(1){width:16%}
@@ -90,14 +102,31 @@ th:nth-child(7),td:nth-child(7){width:66px}
   <p class="mut">AHT25(온/습) + SCD42(온/습/CO₂) · LED제어</p>
   <p class="mut small" id="mqttState">브로커 연결 중…</p>
 
+  <!-- KPI -->
   <div class="grid">
-    <div class="tile"><div>AHT25 온도</div><div id="aht_t" class="v"><span class="val">--.-</span><span class="unit">°C</span></div></div>
-    <div class="tile"><div>AHT25 습도</div><div id="aht_h" class="v"><span class="val">--</span><span class="unit">%</span></div></div>
-    <div class="tile"><div>SCD42 온도</div><div id="scd_t" class="v"><span class="val">--.-</span><span class="unit">°C</span></div></div>
-    <div class="tile"><div>SCD42 습도</div><div id="scd_h" class="v"><span class="val">--</span><span class="unit">%</span></div></div>
-    <div class="tile"><div>CO₂ 공기</div><div id="scd_c" class="v"><span class="val">----</span><span class="unit">ppm</span></div></div>
+    <div class="tile">
+      <div>AHT25 온도</div>
+      <div id="aht_t" class="v"><span class="val">--.-</span><span class="unit">°C</span></div>
+    </div>
+    <div class="tile">
+      <div>AHT25 습도</div>
+      <div id="aht_h" class="v"><span class="val">--</span><span class="unit">%</span></div>
+    </div>
+    <div class="tile">
+      <div>SCD42 온도</div>
+      <div id="scd_t" class="v"><span class="val">--.-</span><span class="unit">°C</span></div>
+    </div>
+    <div class="tile">
+      <div>SCD42 습도</div>
+      <div id="scd_h" class="v"><span class="val">--</span><span class="unit">%</span></div>
+    </div>
+    <div class="tile">
+      <div>CO₂ 공기</div>
+      <div id="scd_c" class="v"><span class="val">----</span><span class="unit">ppm</span></div>
+    </div>
   </div>
 
+  <!-- LED 제어 -->
   <div class="led">
     <button id="on"  class="btn on">LED ON</button>
     <button id="off" class="btn off">LED OFF</button>
@@ -110,6 +139,7 @@ th:nth-child(7),td:nth-child(7){width:66px}
     <button class="btn toggle" id="toggleGraph">📊 그래프 보기</button>
   </div>
 
+  <!-- 테이블 -->
   <div id="tableSection" class="collapsible">
     <div class="tablewrap">
       <table>
@@ -129,6 +159,7 @@ th:nth-child(7),td:nth-child(7){width:66px}
     </div>
   </div>
 
+  <!-- 그래프 -->
   <div id="graphSection" class="collapsible">
     <div class="charts">
       <div class="chart">
@@ -165,15 +196,18 @@ th:nth-child(7),td:nth-child(7){width:66px}
 </div></div>
 
 <script>
+/* ===== 유틸/테마 ===== */
 const $=s=>document.querySelector(s);
 const themeToggle=$('#themeToggle');
 function applyTheme(t){document.documentElement.classList.toggle('light',t==='light');themeToggle.textContent=(t==='light')?'☀️':'🌙';renderAllCharts();}
 applyTheme(localStorage.getItem('theme')||'dark');
 themeToggle.onclick=()=>{const t=document.documentElement.classList.contains('light')?'dark':'light';applyTheme(t);localStorage.setItem('theme',t);};
 
+/* 캐시 */
 let histBuf = JSON.parse(localStorage.getItem('histBuf')||'[]');
 let lastStatus = JSON.parse(localStorage.getItem('lastStatus')||'null');
 
+/* 요소 참조 */
 const el = {
   mqttState: $('#mqttState'),
   aht_t: $('#aht_t'), aht_h: $('#aht_h'),
@@ -181,16 +215,15 @@ const el = {
   ledTxt: $('#led'), mini: $('#mini'), ts: $('#ts')
 };
 
+/* 헬퍼 */
 function toBool(v){ if(typeof v==='boolean') return v; if(typeof v==='number') return v!==0;
   if(typeof v==='string'){ const t=v.trim().toLowerCase(); return t==='1'||t==='on'||t==='true'; } return !!v; }
 function syncButtons(on){const bon=$('#on'), boff=$('#off'); bon.classList.remove('active','dim'); boff.classList.remove('active','dim'); if(on){bon.classList.add('active');boff.classList.add('dim');} else {boff.classList.add('active');bon.classList.add('dim');}}
 function fmtNow(){const d=new Date(),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
-
-/* 값+단위 렌더링 헬퍼 */
+/* 값/단위 두 줄 렌더 */
 function setVal(elem, valStr, unitStr){
   elem.innerHTML = `<span class="val">${valStr}</span><span class="unit">${unitStr}</span>`;
 }
-
 function renderStatus(s){
   const aT=Number(s.aht_t), aH=Number(s.aht_h), sT=Number(s.scd_t), sH=Number(s.scd_h), co=Number(s.co2), led=toBool(s.led);
   if(!Number.isNaN(aT)) setVal(el.aht_t, aT.toFixed(1), '°C');
@@ -203,10 +236,9 @@ function renderStatus(s){
   const rssiText=(typeof s.rssi!=='undefined')?`RSSI: ${s.rssi} [dBm]`:'RSSI: -- [dBm]';
   const line1=`AHT25: ${Number.isNaN(aT)?'--.-':aT.toFixed(1)} °C | ${Number.isNaN(aH)?'--':Math.round(aH)} %`;
   const line2=`SCD42: ${Number.isNaN(sT)?'--.-':sT.toFixed(1)} °C | ${Number.isNaN(sH)?'--':Math.round(sH)} % | ${Number.isNaN(co)?'----':Math.round(co)} ppm`;
-  el.mini.textContent=`${line1}\n${line2}\n${rssiText}`;
+  $('#mini').textContent=`${line1}\n${line2}\n${rssiText}`;
   el.ts.textContent = fmtNow();
 }
-
 function addRowTop(o,ts){
   const tb=$('#logtbl');
   const d=ts?new Date(ts):new Date();
@@ -223,7 +255,7 @@ function addRowTop(o,ts){
   while(tb.rows.length>60) tb.deleteRow(tb.rows.length-1);
 }
 
-/* 차트 (생략 없이 동일) */
+/* 차트 */
 function renderAllCharts(){
   if(!$('#graphSection').classList.contains('open')) return;
   const aht_t=histBuf.map(r=>r.aht_t??NaN), scd_t=histBuf.map(r=>r.scd_t??NaN),
@@ -269,10 +301,10 @@ function drawChart(c, series){
   });
 }
 
-/* 캐시 즉시 */
+/* 캐시 즉시 반영 */
 if (lastStatus) renderStatus(lastStatus);
 
-/* MQTT */
+/* MQTT 연결 */
 const brokerUrl = "wss://6c56aefe0ddb4d57977c735f5070abe8.s1.eu.hivemq.cloud:8884/mqtt";
 const mqttOpt = { username:"mqtt_ESP32", password:"gomqtt_ESP32", clientId:"web-"+Math.random().toString(16).slice(2), clean:true, reconnectPeriod:2000 };
 const client = mqtt.connect(brokerUrl, mqttOpt);
@@ -324,7 +356,7 @@ function pushMinuteSample(s, now){
   minuteSamples.push({ aht_t:+s.aht_t, aht_h:+s.aht_h, scd_t:+s.scd_t, scd_h:+s.scd_h, co2:+s.co2, led:toBool(s.led) });
 }
 
-/* 시각 */
+/* 시각표시 */
 setInterval(()=>{ $('#ts').textContent=(new Date()).toLocaleString('sv-SE').replace('T',' '); },1000);
 </script>
 </body>
